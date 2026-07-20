@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="accessibility_desc">Lets you control this phone from your Mac — taps, swipes, and the Back/Home/Recents buttons on the mirrored screen.</string>
+</resources>

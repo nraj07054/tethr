@@ -1,0 +1,24 @@
+# ── macOS ──────────────────────────────────────────────
+.DS_Store
+
+# ── Mac app · Swift Package Manager (mac/) ─────────────
+mac/.build/
+.swiftpm/
+# The built app binary + signature are outputs; Info.plist is kept so the
+# .app bundle can be reproduced.
+mac/Dogen.app/Contents/MacOS/
+mac/Dogen.app/Contents/_CodeSignature/
+
+# ── Android app · Gradle (android/) ────────────────────
+android/.gradle/
+android/.kotlin/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+*.iml
+*.hprof
+
+# ── Misc ───────────────────────────────────────────────
+*.log
