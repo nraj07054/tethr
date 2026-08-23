@@ -1,6 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Dogen" parent="android:Theme.Material.Light.NoActionBar">
+    <style name="Theme.Tethr" parent="android:Theme.Material.Light.NoActionBar">
+        <!-- Matches the Glide canvas so there is no white flash on launch. -->
+        <item name="android:windowBackground">#EFEFF1</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
+
+    <!-- Camera fills the screen, so the bars stay transparent with light icons. -->
+    <style name="Theme.Tethr.Scanner" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">#000000</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
     </style>
 </resources>

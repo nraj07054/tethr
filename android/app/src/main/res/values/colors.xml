@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The ink the Tethr mark sits on, sampled from brand/tethr-mark-dark.png. -->
+    <color name="tethr_mark">#343232</color>
+</resources>

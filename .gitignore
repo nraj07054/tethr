@@ -4,10 +4,11 @@
 # ── Mac app · Swift Package Manager (mac/) ─────────────
 mac/.build/
 .swiftpm/
-# The built app binary + signature are outputs; Info.plist is kept so the
-# .app bundle can be reproduced.
-mac/Dogen.app/Contents/MacOS/
-mac/Dogen.app/Contents/_CodeSignature/
+# The built app binary, its copied resource bundle, and the signature are
+# outputs; Info.plist and AppIcon.icns are kept so the .app can be reproduced.
+mac/Tethr.app/Contents/MacOS/
+mac/Tethr.app/Contents/_CodeSignature/
+mac/Tethr.app/Contents/Resources/Tethr_Tethr.bundle/
 
 # ── Android app · Gradle (android/) ────────────────────
 android/.gradle/
