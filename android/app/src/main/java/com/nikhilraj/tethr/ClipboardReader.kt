@@ -48,6 +48,15 @@ object ClipboardReader {
             onResult(null, Clipboard.Skip.BLOCKED)
             return
         }
+        // No window can hold focus while the display is off, so the overlay
+        // would be added, wait out its timeout and be torn down again for
+        // nothing. The Mac asks every few seconds, so failing fast here is the
+        // difference between idle and a pointless window churning all night.
+        val power = context.getSystemService(android.os.PowerManager::class.java)
+        if (power?.isInteractive == false) {
+            onResult(null, Clipboard.Skip.BLOCKED)
+            return
+        }
         val wm = context.getSystemService(Context.WINDOW_SERVICE) as? WindowManager
         if (wm == null) {
             onResult(null, Clipboard.Skip.BLOCKED)
