@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Builds the Android app and installs it to the connected device.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+VARIANT="${VARIANT:-debug}"
+
+if ! command -v adb >/dev/null; then
+  echo "adb not found. Install Android platform-tools and try again." >&2
+  exit 1
+fi
+if [ -z "$(adb devices | sed -n '2p')" ]; then
+  echo "No device connected. Enable USB debugging and plug the phone in." >&2
+  exit 1
+fi
+
+echo "==> Building ($VARIANT)"
+( cd "$ROOT/android" && ./gradlew "assemble${VARIANT^}" )
+
+APK=$(find "$ROOT/android/app/build/outputs/apk/$VARIANT" -name '*.apk' | head -1)
+echo "==> Installing $APK"
+adb install -r "$APK"
+adb shell am start -n com.nikhilraj.tethr/.MainActivity >/dev/null
+echo "==> Tethr is running on the phone"
