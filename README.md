@@ -192,8 +192,14 @@ talking to each other if they drift apart.
 ## Support
 
 Tethr is free and MIT licensed, and it stays that way. If it saved you some time
-and you would like to say thanks, there is a sponsor button on the repository.
-Entirely optional — bug reports and fixes are worth more.
+and you would like to say thanks, you can [sponsor the project][sponsor] — or use
+the **Sponsor** button at the top of this repository.
+
+[sponsor]: https://github.com/sponsors/nraj07054
+
+Entirely optional, and it buys nothing: no priority support, no private builds,
+no features behind a paywall. Bug reports from hardware I cannot test on are
+worth more than money.
 
 ## License
 
