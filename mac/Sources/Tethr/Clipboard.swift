@@ -47,7 +47,11 @@ final class ClipboardWatcher: ObservableObject {
             .store(in: &cancellables)
 
         let timer = Timer.scheduledTimer(withTimeInterval: 0.7, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.poll() }
+            // The timer is on the main run loop, so this already runs on the
+            // main actor — assume it rather than hopping through a Task, which
+            // would both delay the read and capture a weak var across a
+            // concurrency boundary.
+            MainActor.assumeIsolated { self?.poll() }
         }
         // The main run loop drops timers while a menu is open or a window is
         // being dragged; .common keeps the clipboard live through both.
