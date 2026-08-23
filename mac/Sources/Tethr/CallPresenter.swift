@@ -1,0 +1,219 @@
+import AppKit
+import Combine
+import SwiftUI
+
+/// The app's live objects, owned outside SwiftUI.
+///
+/// These used to be `@StateObject`s wired together in `ContentView.onAppear`,
+/// which quietly tied the whole link to a window existing. That breaks exactly
+/// where it matters most: launched at login Tethr comes up hidden, no window is
+/// ever built, `onAppear` never runs — and the Mac would sit there paired but
+/// deaf to calls, notifications and the clipboard. Starting from the app
+/// delegate instead means the link is live whether or not anything is on screen.
+@MainActor
+final class AppCore {
+    static let shared = AppCore()
+
+    let state = AppState()
+    let pairing = PairingManager()
+    let clipboard = ClipboardWatcher()
+    let files = FileTransfers()
+    private lazy var bridge = LinkBridge(state: state, pairing: pairing)
+    private var started = false
+
+    private init() {}
+
+    func start() {
+        guard !started else { return }
+        started = true
+        bridge.start()
+        clipboard.attach(to: pairing)
+        // Wired here rather than in a view: a file can arrive whether or not
+        // any window is open, and it needs somewhere to land either way.
+        files.attach(to: pairing)
+        pairing.files = files
+    }
+}
+
+/// Mirrors the phone's live state into [AppState], independently of any window.
+///
+/// This bridging used to live in ContentView's `.onReceive` modifiers, which
+/// tied it to the main window's lifetime: close the window and the Mac stopped
+/// noticing calls, contacts and notifications altogether. Tethr is meant to run
+/// with its window closed, so the link's state has to be owned above the window,
+/// not inside one.
+@MainActor
+final class LinkBridge: ObservableObject {
+    private var cancellables = Set<AnyCancellable>()
+    private let state: AppState
+    private let pairing: PairingManager
+    private let calls: CallPresenter
+
+    init(state: AppState, pairing: PairingManager) {
+        self.state = state
+        self.pairing = pairing
+        self.calls = CallPresenter(state: state, pairing: pairing)
+    }
+
+    func start() {
+        pairing.$hasPaired.sink { [state] in state.setPhonePaired($0) }.store(in: &cancellables)
+        pairing.$liveContacts.sink { [state] in state.liveContacts = $0 }.store(in: &cancellables)
+        pairing.$liveRecents.sink { [state] in state.liveRecents = $0 }.store(in: &cancellables)
+        pairing.$liveNotifications.sink { [state] in state.notifications = $0 }.store(in: &cancellables)
+        pairing.$liveClips.sink { [state] in state.liveClips = $0 }.store(in: &cancellables)
+        pairing.$muted.sink { [state] in state.muted = $0 }.store(in: &cancellables)
+        pairing.$speaker.sink { [state] in state.speaker = $0 }.store(in: &cancellables)
+
+        pairing.$callerNumber
+            .sink { [state, pairing] number in
+                state.applyCaller(number: number, name: pairing.callerName)
+            }
+            .store(in: &cancellables)
+        pairing.$callerName
+            .sink { [state, pairing] name in
+                state.applyCaller(number: pairing.callerNumber, name: name)
+            }
+            .store(in: &cancellables)
+
+        pairing.$callPhase
+            .removeDuplicates()
+            .sink { [weak self] phase in self?.apply(phase) }
+            .store(in: &cancellables)
+    }
+
+    /// The phone's telephony state is the single source of truth for the
+    /// incoming-call banner and the in-call panel.
+    private func apply(_ phase: PairingManager.CallPhase) {
+        switch phase {
+        case .ringing:
+            state.incomingCall = true
+            state.inCall = false
+            state.callConnectedAt = nil
+        case .active:
+            state.incomingCall = false
+            state.inCall = true
+            // Answered, and we know exactly when — but only because we watched
+            // it ring first. See AppState.callConnectedAt.
+            state.callConnectedAt = previousPhase == .ringing ? Date() : nil
+        case .idle:
+            state.incomingCall = false
+            state.inCall = false
+            state.callConnectedAt = nil
+        }
+        previousPhase = phase
+        calls.update(for: phase)
+    }
+
+    private var previousPhase: PairingManager.CallPhase = .idle
+}
+
+/// Puts a ringing or ongoing call on screen whether or not Tethr's window is open.
+///
+/// A floating panel rather than a SwiftUI scene: it has to appear over whatever
+/// you are working in, without pulling you out of it. `orderFrontRegardless`
+/// shows it while Tethr stays in the background, and a non-activating panel lets
+/// Answer and Decline be clicked without bringing the whole app forward.
+@MainActor
+final class CallPresenter {
+    private let state: AppState
+    private let pairing: PairingManager
+    private var panel: CallPanel?
+
+    init(state: AppState, pairing: PairingManager) {
+        self.state = state
+        self.pairing = pairing
+    }
+
+    func update(for phase: PairingManager.CallPhase) {
+        switch phase {
+        case .idle:
+            panel?.orderOut(nil)
+        case .ringing, .active:
+            show(compact: phase == .ringing)
+        }
+    }
+
+    private func show(compact: Bool) {
+        let panel = self.panel ?? makePanel()
+        self.panel = panel
+        // One size for both states: the card is the same shape ringing or
+        // connected, so resizing mid-call would only make it jump. Roomy enough
+        // for the card's shadow, since the window itself is transparent.
+        _ = compact
+        // Sized to the card itself now that it fills the window: no padding is
+        // needed for a shadow the window draws outside its own frame.
+        let size = NSSize(width: 360, height: 172)
+        panel.setContentSize(size)
+        positionTopRight(panel, size: size)
+        // Regardless: the window shows even though Tethr is not the active app,
+        // which is the entire point of it.
+        panel.orderFrontRegardless()
+    }
+
+    private func positionTopRight(_ panel: CallPanel, size: NSSize) {
+        guard let screen = NSScreen.main else { return }
+        let visible = screen.visibleFrame
+        let origin = NSPoint(x: visible.maxX - size.width - 24,
+                             y: visible.maxY - size.height - 24)
+        panel.setFrameOrigin(origin)
+    }
+
+    private func makePanel() -> CallPanel {
+        let content = CallWindowContent()
+            .environmentObject(state)
+            .environmentObject(pairing)
+
+        // Borderless, not .titled: a titled panel keeps window chrome and a
+        // title-bar inset even with the title hidden, and its frame does not
+        // line up with the rounded card drawn inside it.
+        let panel = CallPanel(
+            contentRect: NSRect(origin: .zero, size: NSSize(width: 372, height: 208)),
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        panel.contentView = NSHostingView(rootView: content)
+        panel.isMovableByWindowBackground = true
+        // The window draws the shadow, outside its own frame, so the card can
+        // fill the window edge to edge with no transparent margin to show
+        // through. The ragged silhouette this used to produce came from a
+        // mostly-transparent window with a small card floating in the middle;
+        // a card that fills it gives the compositor a clean rounded rect.
+        panel.hasShadow = true
+        panel.level = .floating
+        // Survives Tethr losing focus, and follows you between Spaces — a call
+        // is not something to leave behind on desktop 1.
+        panel.hidesOnDeactivate = false
+        panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+        panel.isOpaque = false
+        panel.backgroundColor = .clear
+        panel.isReleasedWhenClosed = false
+        return panel
+    }
+}
+
+/// A borderless panel still has to be able to take key status, or the Accept
+/// and Decline buttons would not respond to the first click.
+private final class CallPanel: NSPanel {
+    override var canBecomeKey: Bool { true }
+}
+
+/// The panel's contents: the same banner and in-call panel the main window uses.
+private struct CallWindowContent: View {
+    @EnvironmentObject var state: AppState
+
+    var body: some View {
+        ZStack {
+            if state.incomingCall {
+                IncomingCallBanner()
+            } else if state.inCall {
+                InCallPanel()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // Applied in the body, not at construction: the panel is built once and
+        // has to follow the accent if it changes mid-session.
+        .tint(state.accent)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: state.incomingCall)
+    }
+}
