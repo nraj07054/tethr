@@ -3,11 +3,19 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- mDNS: finding the Mac on whatever network we're on. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- The link to the Mac is a connected-device service, not a data sync:
+         dataSync is background-start restricted and time-capped. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <!-- Contacts, call log, and calling/call-control -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
@@ -17,9 +25,41 @@
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- Not for drawing anything: since Android 10 the clipboard is readable
+         only by the app holding window focus, so answering the Mac's "what's on
+         your clipboard" needs a momentary focusable overlay. See ClipboardReader. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <!-- Android 11+ hides other packages unless they are declared here. Without
+         this, resolving the OEM auto-start screen always returns null and the
+         prompt silently never appears. Naming the packages avoids needing the
+         far broader QUERY_ALL_PACKAGES. -->
+    <queries>
+        <package android:name="com.oplus.safecenter" />
+        <package android:name="com.coloros.safecenter" />
+        <package android:name="com.oppo.safe" />
+        <package android:name="com.miui.securitycenter" />
+        <package android:name="com.iqoo.secure" />
+        <package android:name="com.vivo.permissionmanager" />
+        <package android:name="com.huawei.systemmanager" />
+        <package android:name="com.asus.mobilemanager" />
+        <!-- Mirrored notifications carry only a package name, so their app name
+             and icon are read from PackageManager — which reports nothing for a
+             package we cannot see, leaving the Mac showing "com.foo.bar" and a
+             placeholder badge. Any app whose notifications a person would
+             recognise has a launcher entry, so querying that intent covers them
+             without the far broader QUERY_ALL_PACKAGES. -->
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+    </queries>
+
     <application
-        android:label="Dogen"
-        android:theme="@style/Theme.Dogen"
+        android:label="Tethr"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:theme="@style/Theme.Tethr"
         android:usesCleartextTraffic="true">
 
         <activity
@@ -31,22 +71,73 @@
             </intent-filter>
         </activity>
 
+        <!-- Tethr in the system share sheet: send anything to the Mac from the
+             app it already lives in, rather than picking it out again here. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:label="Send to Mac"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ScannerActivity"
+            android:exported="false"
+            android:screenOrientation="portrait"
+            android:theme="@style/Theme.Tethr.Scanner" />
+
         <service
             android:name=".ConnectionService"
             android:exported="false"
-            android:foregroundServiceType="dataSync|mediaProjection" />
+            android:foregroundServiceType="connectedDevice|dataSync|mediaProjection" />
+
+        <!-- Reads notifications to mirror them, and fires their reply actions.
+             The user grants this once in Settings > Notification access. -->
+        <!-- Reconnects after a reboot so the app never has to be opened. -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true"
+            android:directBootAware="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="com.oppo.intent.action.QUICKBOOT_POWERON" />
+            </intent-filter>
+        </receiver>
 
         <service
-            android:name=".DogenGestureService"
+            android:name=".TethrNotificationService"
+            android:exported="false"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <service
+            android:name=".TethrGestureService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
             android:exported="true"
-            android:label="Dogen — Control from Mac">
+            android:label="Tethr — Control from Mac">
             <intent-filter>
                 <action android:name="android.accessibilityservice.AccessibilityService" />
             </intent-filter>
             <meta-data
                 android:name="android.accessibilityservice"
-                android:resource="@xml/dogen_accessibility" />
+                android:resource="@xml/tethr_accessibility" />
         </service>
     </application>
 </manifest>
