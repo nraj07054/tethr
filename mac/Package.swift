@@ -2,9 +2,13 @@
 import PackageDescription
 
 let package = Package(
-    name: "Dogen",
+    name: "Tethr",
     platforms: [.macOS(.v14)],
     targets: [
-        .executableTarget(name: "Dogen", path: "Sources/Dogen")
+        .executableTarget(
+            name: "Tethr",
+            path: "Sources/Tethr",
+            resources: [.process("Resources")]
+        )
     ]
 )
