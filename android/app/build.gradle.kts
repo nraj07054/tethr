@@ -4,7 +4,7 @@ plugins {
 }
 
 android {
-    namespace = "com.nikhilraj.dogen"
+    namespace = "com.nikhilraj.tethr"
     compileSdk {
         version = release(36) {
             minorApiLevel = 1
@@ -12,15 +12,34 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.nikhilraj.dogen"
+        applicationId = "com.nikhilraj.tethr"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
         versionName = "1.0"
     }
 
+    // Driven by environment variables rather than a checked-in keystore: a
+    // signing key must never live in the repository. CI supplies these from
+    // secrets; locally they are simply absent and release builds stay unsigned.
+    val keystorePath: String? = System.getenv("TETHR_KEYSTORE")?.takeIf { it.isNotBlank() }
+
+    signingConfigs {
+        if (keystorePath != null) {
+            create("release") {
+                storeFile = file(keystorePath)
+                storePassword = System.getenv("TETHR_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("TETHR_KEY_ALIAS")
+                keyPassword = System.getenv("TETHR_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (keystorePath != null) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -38,6 +57,9 @@ android {
 }
 
 dependencies {
+    // Wire-format tests for SessionCrypto, which has to stay byte-compatible
+    // with the Mac's Swift implementation.
+    testImplementation("junit:junit:4.13.2")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
