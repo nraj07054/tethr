@@ -4,7 +4,7 @@
 over your local Wi‑Fi network — no account, no cloud, everything stays on your LAN.
 
 > ⚠️ Work in progress. Built and tested against one Android device (OnePlus /
-> Android 14) and macOS 14+. Contributions welcome.
+> Android 14) and macOS 26+. Contributions welcome.
 
 ## Features
 
@@ -149,7 +149,7 @@ make test              # wire-format tests for the encrypted session
 Or without make: `scripts/build-mac.sh`, `scripts/install-mac.sh`,
 `scripts/install-android.sh`.
 
-**Requirements** — macOS 14+ with a Swift toolchain (Xcode) for the Mac app;
+**Requirements** — macOS 26+ with a Swift toolchain (Xcode) for the Mac app;
 JDK 17 and the Android SDK for the phone app. `android/local.properties` is
 generated locally and deliberately not committed.
 
@@ -181,7 +181,7 @@ secrets — the workflow falls back to a debug build (and says so) without them:
 ## Contributing
 
 Issues and pull requests are welcome. Tethr has been built and tested against a
-single Android device (OnePlus, Android 14+) and macOS 14+, so reports from other
+single Android device (OnePlus, Android 14+) and macOS 26+, so reports from other
 hardware are genuinely useful — especially OEM skins that handle background
 services differently.
 

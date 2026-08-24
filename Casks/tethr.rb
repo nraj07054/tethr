@@ -13,6 +13,10 @@ cask "tethr" do
   desc "Link an Android phone to your Mac over your own Wi-Fi"
   homepage "https://github.com/nraj07054/tethr"
 
+  # The build is Tahoe-only (LSMinimumSystemVersion 26.0). Without this Homebrew
+  # would happily install a binary the machine cannot launch.
+  depends_on macos: ">= :tahoe"
+
   app "Tethr.app"
 
   # Everything Tethr keeps on the Mac: the pairing secret, the accent and theme

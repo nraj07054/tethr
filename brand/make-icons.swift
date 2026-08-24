@@ -252,19 +252,35 @@ write(roundedTile(size: 512, source: darkImg, srcRect: darkRect, radiusFrac: rad
       to: "\(macRes)/TethrLogo.png")
 write(glyphSquare(size: 512, inset: 0, color: tileColor), to: "\(macRes)/TethrGlyph.png")
 
-// macOS .icns: Apple's grid insets the rounded square inside a clear margin, and
-// wants both the 1× and the @2× of every logical size.
+// macOS .icns: wants both the 1× and the @2× of every logical size.
+//
+// Opaque, corner to corner, no rounding — which is the opposite of what Apple's
+// old icon grid asked for, and deliberately. macOS 26 hands any legacy .icns
+// carrying an alpha channel to its own icon treatment: it reads the transparency
+// as the icon's silhouette, shrinks the artwork and mounts it on a light grey
+// plate. A rounded tile inside a clear margin is exactly that shape, so Tethr's
+// dark mark came out as a small square floating on a white card. Leaving no
+// transparency at all gives that pass nothing to mount, and it masks the square
+// into the system's own squircle instead. Verified against the plate: only fully
+// opaque avoids it — full-bleed artwork with rounded corners still gets plated.
 print("macOS icon:")
 let iconset = NSTemporaryDirectory() + "AppIcon.iconset"
 try? FileManager.default.removeItem(atPath: iconset)
 mkdir(iconset)
 func macIcon(_ s: Int) -> CGImage {
     makeImage(w: s, h: s) { ctx in
-        let inset = Double(s) * 0.095
-        let box = Double(s) - inset * 2
-        let t = roundedTile(size: max(Int(box.rounded()), 1), source: darkImg,
-                            srcRect: darkRect, radiusFrac: radiusFrac)
-        ctx.draw(t, in: CGRect(x: inset, y: inset, width: box, height: box))
+        // Sampled in the context's own space: a CGColor built with the plain
+        // red/green/blue initialiser lands in generic RGB and comes out a couple
+        // of shades light of the ink the glyph was lifted off.
+        ctx.setFillColor(CGColor(colorSpace: CGColorSpaceCreateDeviceRGB(),
+                                 components: [tint.r, tint.g, tint.b, 1])!)
+        ctx.fill(CGRect(x: 0, y: 0, width: s, height: s))
+        // The tile used to sit at 81% of the canvas with the glyph at its own
+        // size on it. The ink now runs to the edge, so that 81% folds into the
+        // glyph to keep the mark the size it has always looked.
+        let frac = Double(gW) / Double(side) * (1 - 0.095 * 2)
+        ctx.draw(glyphSquare(size: s, inset: (1 - frac) / 2, color: nil),
+                 in: CGRect(x: 0, y: 0, width: s, height: s))
     }
 }
 for logical in [16, 32, 128, 256, 512] {
