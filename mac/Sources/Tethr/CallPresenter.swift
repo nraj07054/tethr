@@ -27,6 +27,17 @@ final class AppCore {
         guard !started else { return }
         started = true
         bridge.start()
+        // Commands out to the phone, wired here for the same reason the state
+        // coming back is: these used to be set in ContentView.onAppear, so
+        // until a window had been opened once they were all nil — and Decline
+        // on the floating call panel quietly dismissed the banner without ever
+        // telling the phone to reject anything. Launched at login, which is how
+        // Tethr is meant to run, that was every call.
+        state.onDial = { [pairing] in pairing.dial($0) }
+        state.onAnswer = { [pairing] in pairing.answerCall() }
+        state.onHangup = { [pairing] in pairing.hangup() }
+        state.onSetMute = { [pairing] in pairing.setMute($0) }
+        state.onSetSpeaker = { [pairing] in pairing.setSpeaker($0) }
         clipboard.attach(to: pairing)
         // Wired here rather than in a view: a file can arrive whether or not
         // any window is open, and it needs somewhere to land either way.
@@ -83,22 +94,21 @@ final class LinkBridge: ObservableObject {
 
     /// The phone's telephony state is the single source of truth for the
     /// incoming-call banner and the in-call panel.
+    ///
+    /// It reports one state for the whole phone, though, so it cannot say
+    /// "ringing *while* another call is up" — which is why deciding what that
+    /// means for the two panels is left to AppState, the only place that knows
+    /// whether there was already a call underneath.
     private func apply(_ phase: PairingManager.CallPhase) {
         switch phase {
         case .ringing:
-            state.incomingCall = true
-            state.inCall = false
-            state.callConnectedAt = nil
+            state.markCallRinging()
         case .active:
-            state.incomingCall = false
-            state.inCall = true
             // Answered, and we know exactly when — but only because we watched
             // it ring first. See AppState.callConnectedAt.
-            state.callConnectedAt = previousPhase == .ringing ? Date() : nil
+            state.markCallActive(answeredNow: previousPhase == .ringing)
         case .idle:
-            state.incomingCall = false
-            state.inCall = false
-            state.callConnectedAt = nil
+            state.markCallIdle()
         }
         previousPhase = phase
         calls.update(for: phase)

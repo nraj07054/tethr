@@ -72,6 +72,21 @@ final class AppState: ObservableObject {
     /// timing from there would count ringing the phone's own timer never does.
     @Published var callConnectedAt: Date?
 
+    /// The connected call, held aside for as long as a second one is ringing.
+    ///
+    /// Android reports one telephony state and one caller for the whole phone,
+    /// so a call arriving during another looks identical to a call arriving out
+    /// of the blue: the state goes to "ringing" and the caller is overwritten
+    /// with the new number. Taking that at face value threw the call already in
+    /// progress away — decline the interruption and the panel had nothing left
+    /// to show, because the call underneath it had been forgotten while it rang.
+    /// Keeping it here means declining call waiting puts the first call back,
+    /// with the caller it actually has and a timer that never restarted.
+    private var ongoing: (name: String, number: String, connectedAt: Date?)?
+
+    /// Who is on the line, ignoring anyone currently ringing through.
+    var ongoingCallerName: String { ongoing?.name ?? callerName }
+
     // In-call audio state (reflects what the phone reports).
     @Published var muted = false
     @Published var speaker = false
@@ -244,17 +259,72 @@ final class AppState: ObservableObject {
     /// Answer the ringing call on the phone.
     func acceptCall() {
         incomingCall = false
+        // Answering during another call puts that one on hold, so the call on
+        // the line is now this one — it, not the held call, is what the panel
+        // goes back to when the phone next reports in.
+        if ongoing != nil { ongoing = (callerName, callerNumber, Date()) }
         onAnswer?()
     }
 
     /// Reject a ringing call or hang up the active one on the phone.
     func endCall() {
         inCall = false
+        ongoing = nil
         onHangup?()
     }
 
     func declineCall() {
         incomingCall = false
+        // Declining call waiting leaves the first call up. Restore it here
+        // rather than waiting for the phone to say so: the next report arrives
+        // carrying the *declined* caller's number, and until it lands there is
+        // nothing on screen at all.
+        if ongoing != nil {
+            inCall = true
+            resumeOngoingCall()
+        }
         onHangup?()
+    }
+
+    // MARK: Call phase, as reported by the phone
+
+    /// A call is ringing. Only clears the in-call panel when there was no call
+    /// to begin with — otherwise this is call waiting over a live call.
+    func markCallRinging() {
+        incomingCall = true
+        guard ongoing == nil else { return }
+        inCall = false
+        callConnectedAt = nil
+    }
+
+    /// A call is connected. Either the one that was already up coming back
+    /// after an interruption, or a new one to hold on to.
+    ///
+    /// - Parameter answeredNow: true when the phone went straight from ringing
+    ///   to offhook, which is the moment an incoming call was picked up.
+    func markCallActive(answeredNow: Bool) {
+        incomingCall = false
+        inCall = true
+        if ongoing != nil {
+            resumeOngoingCall()
+        } else {
+            callConnectedAt = answeredNow ? Date() : nil
+            ongoing = (callerName, callerNumber, callConnectedAt)
+        }
+    }
+
+    /// The phone is idle: no call, ringing or otherwise.
+    func markCallIdle() {
+        incomingCall = false
+        inCall = false
+        callConnectedAt = nil
+        ongoing = nil
+    }
+
+    private func resumeOngoingCall() {
+        guard let ongoing else { return }
+        callerName = ongoing.name
+        callerNumber = ongoing.number
+        callConnectedAt = ongoing.connectedAt
     }
 }

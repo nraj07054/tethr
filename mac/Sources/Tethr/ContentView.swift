@@ -35,13 +35,6 @@ struct ContentView: View {
         .onChange(of: pairing.mirrorFrame != nil) { _, hasFrame in
             if hasFrame { openWindow(id: "mirror") }
         }
-        .onAppear {
-            state.onDial = { pairing.dial($0) }
-            state.onAnswer = { pairing.answerCall() }
-            state.onHangup = { pairing.hangup() }
-            state.onSetMute = { pairing.setMute($0) }
-            state.onSetSpeaker = { pairing.setSpeaker($0) }
-        }
     }
 
     @ViewBuilder

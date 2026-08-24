@@ -677,7 +677,9 @@ struct MenuBarPanel: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(Glide.onInk)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(state.callerName.isEmpty ? "Ongoing call" : state.callerName)
+                        // The ongoing call's own caller: while a second call
+                        // rings through, `callerName` is whoever is ringing.
+                        Text(state.ongoingCallerName.isEmpty ? "Ongoing call" : state.ongoingCallerName)
                             .font(.system(size: 13, weight: .semibold))
                         Text("Ongoing call")
                             .font(.system(size: 11))
