@@ -9,10 +9,10 @@ jobs:
   android:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v6
         with: { distribution: temurin, java-version: "17" }
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
       # These pin the encrypted wire format against the Mac's Swift
       # implementation. If they fail, the two ends can no longer talk.
       - run: cd android && ./gradlew testDebugUnitTest assembleDebug
@@ -22,5 +22,5 @@ jobs:
     # the matching SDK. The older image cannot build it.
     runs-on: macos-26
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: swift build --package-path mac -c release
