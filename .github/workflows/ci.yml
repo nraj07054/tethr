@@ -18,7 +18,9 @@ jobs:
       - run: cd android && ./gradlew testDebugUnitTest assembleDebug
 
   mac:
-    runs-on: macos-14
+    # macOS 26 runner: the app's deployment target is macOS 26, which needs
+    # the matching SDK. The older image cannot build it.
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@v4
       - run: swift build --package-path mac -c release

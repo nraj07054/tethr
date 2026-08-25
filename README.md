@@ -30,7 +30,18 @@ Grab the two files from the [latest release][releases] — no compiler needed.
 
 [releases]: https://github.com/nraj07054/tethr/releases/latest
 
+| | Needs |
+|---|---|
+| **Mac** | macOS 26 (Tahoe) or later, Apple silicon |
+| **Phone** | Android 14 or later |
+
 ### Mac
+
+> **Needs macOS 26 (Tahoe) or later, on Apple silicon.** Homebrew refuses to
+> install on anything earlier, and a downloaded copy will not open. Check under
+> the Apple menu > About This Mac. The published build is `arm64` only, so an
+> Intel Mac needs to build from source. So does macOS 14 or 15, with the
+> platform floor in `mac/Package.swift` lowered back to `.macOS(.v14)`.
 
 **Homebrew** (one command, nothing else to do):
 

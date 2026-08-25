@@ -14,8 +14,13 @@ if [ -z "$(adb devices | sed -n '2p')" ]; then
   exit 1
 fi
 
+# Capitalised for the Gradle task name. Spelled out rather than "${VARIANT^}",
+# which is a bash 4 expansion: macOS still ships bash 3.2, where it is a syntax
+# error and this script could never install anything.
+TASK="$(printf '%s' "$VARIANT" | awk '{print toupper(substr($0,1,1)) substr($0,2)}')"
+
 echo "==> Building ($VARIANT)"
-( cd "$ROOT/android" && ./gradlew "assemble${VARIANT^}" )
+( cd "$ROOT/android" && ./gradlew "assemble$TASK" )
 
 APK=$(find "$ROOT/android/app/build/outputs/apk/$VARIANT" -name '*.apk' | head -1)
 echo "==> Installing $APK"
