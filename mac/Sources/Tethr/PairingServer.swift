@@ -16,6 +16,7 @@ import CryptoKit
 /// secret the page stores in localStorage, so reopening the page reconnects without rescanning.
 /// A 5s heartbeat (with battery level) keeps the link verified; 15s of silence = disconnected.
 final class PairingManager: ObservableObject {
+
     enum Phase: Equatable { case waiting, connected }
 
     @Published var phase: Phase = .waiting
@@ -143,8 +144,22 @@ final class PairingManager: ObservableObject {
             phase = .waiting
             battery = nil
             mirrorFrame = nil
+            clearCallState()
         }
         refreshPairURL()
+    }
+
+    /// Drop everything the phone was telling us about the current call.
+    ///
+    /// With no link the Mac cannot know whether a call is still up, and the
+    /// honest answer is to stop claiming one. A call that really is still going
+    /// comes straight back: the phone sends a snapshot as soon as it verifies a
+    /// Mac again. Leaving it on screen instead is how a call that ended hours
+    /// ago was still sitting there, timer running, after the Mac woke up.
+    private func clearCallState() {
+        callPhase = .idle
+        callerNumber = ""
+        callerName = ""
     }
 
     private func refreshPairURL() {
@@ -478,6 +493,12 @@ final class PairingManager: ObservableObject {
             self.callerName = ""
         }
     }
+    /// Ask the phone what is actually happening right now.
+    ///
+    /// Call state is otherwise only ever pushed on a transition, so a Mac that
+    /// was asleep when a call ended never heard about it and comes back still
+    /// showing the call. See LinkBridge's wake handling.
+    func requestState() { sendCommand(["type": "requestState"]) }
     func answerCall() { sendCommand(["type": "answer"]) }
     func hangup() { sendCommand(["type": "hangup"]) }
     func setMute(_ on: Bool) { sendCommand(["type": "setMute", "on": on]) }
@@ -696,6 +717,7 @@ final class PairingManager: ObservableObject {
                 self.phase = .waiting
                 self.battery = nil
                 self.mirrorFrame = nil
+                self.clearCallState()
             }
         }
     }

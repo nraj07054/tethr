@@ -40,7 +40,8 @@ class CallController(
     // The last state reported, so a number arriving separately can be paired
     // with the state it belongs to.
     private var lastState = TelephonyManager.CALL_STATE_IDLE
-    private var lastNumber: String? = null
+    // Which caller belongs to which call. See CallNumbers.
+    private val numbers = CallNumbers()
 
     /**
      * The caller's number, which the telephony callback no longer carries.
@@ -104,6 +105,28 @@ class CallController(
         }
     }
 
+    /**
+     * The call state as it is right now, rather than at the next change.
+     *
+     * Every other report is edge-triggered: the listener fires on a transition
+     * and the Mac is expected to remember what it was told. That falls apart
+     * across a sleeping Mac — the call ends while the socket is dead, the
+     * "idle" goes nowhere, and the Mac wakes still showing a call that hung up
+     * minutes ago. Being able to ask outright is what closes that gap.
+     */
+    val currentState: String
+        get() = when (
+            runCatching { telephony.callState }
+                .getOrDefault(TelephonyManager.CALL_STATE_IDLE)
+        ) {
+            TelephonyManager.CALL_STATE_RINGING -> "ringing"
+            TelephonyManager.CALL_STATE_OFFHOOK -> "offhook"
+            else -> "idle"
+        }
+
+    /** Who is on the current call, as far as the last report knew. */
+    val currentNumber: String? get() = numbers.forState(currentState)
+
     fun start() {
         if (!PhoneData.hasPermission(context, android.Manifest.permission.READ_PHONE_STATE)) return
         // A system protected broadcast, so it has to be registered as exported.
@@ -146,14 +169,11 @@ class CallController(
     private fun report(state: Int, number: String?) {
         lastState = state
         val s = when (state) {
-            TelephonyManager.CALL_STATE_RINGING -> "ringing"
-            TelephonyManager.CALL_STATE_OFFHOOK -> "offhook"
-            else -> "idle"
+            TelephonyManager.CALL_STATE_RINGING -> CallNumbers.RINGING
+            TelephonyManager.CALL_STATE_OFFHOOK -> CallNumbers.OFFHOOK
+            else -> CallNumbers.IDLE
         }
-        // A call ending retires its number; anything else keeps the one we have,
-        // so answering a call doesn't blank out who is on the line.
-        if (s == "idle") lastNumber = null else if (!number.isNullOrBlank()) lastNumber = number
-        onState(s, lastNumber)
+        onState(s, numbers.report(s, number))
     }
 
     /**

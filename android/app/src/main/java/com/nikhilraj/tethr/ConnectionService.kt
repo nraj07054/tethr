@@ -517,6 +517,9 @@ class ConnectionService : Service() {
                         msg.optString("key"), msg.optString("text")
                     )
                     "getNotifications" -> TethrNotificationService.instance?.pushAll()
+                    // A Mac catching up after sleep: it cannot trust what it
+                    // was last told, so it asks rather than assumes.
+                    "requestState" -> handler.post { pushCallStateSnapshot() }
                     "clipboard" -> {
                         val text = msg.optString("text")
                         if (text.isNotEmpty()) handler.post {
@@ -632,6 +635,9 @@ class ConnectionService : Service() {
                             handler.removeCallbacks(heartbeat)
                             handler.post(heartbeat)
                             startCallController()
+                            // Before anything else the Mac renders: it may have
+                            // been showing a call that ended while it was away.
+                            pushCallStateSnapshot()
                             pushPhoneData()
                             startCallLogWatch()
                             startClipWatch()
@@ -706,25 +712,7 @@ class ConnectionService : Service() {
             // Forward every call-state change to the Mac, plus current audio
             // state. The name lookup is a content query and this callback
             // arrives on the main thread mid-ring, so it happens off it.
-            Thread {
-                val name = number?.takeIf { it.isNotBlank() }
-                    ?.let { PhoneData.contactName(applicationContext, it) }
-                // Whether we identified the caller, never who: the number and
-                // the name are the two things that must not reach logcat.
-                android.util.Log.i(
-                    "TethrCall",
-                    "state=$state number=${number != null} named=${name != null}"
-                )
-                sendJson(
-                    JSONObject()
-                        .put("type", "callState")
-                        .put("state", state)
-                        .apply {
-                            number?.let { put("number", it) }
-                            name?.let { put("name", it) }
-                        }
-                )
-            }.start()
+            pushCallState(state, number)
             sendCallAudio()
             // The row for a call that just ended is written a beat after the
             // state goes idle — pull it then, in case the log's own change
@@ -739,6 +727,46 @@ class ConnectionService : Service() {
     }
 
     /** Reports current mic-mute / speakerphone state to the Mac. */
+    /**
+     * Tell the Mac about a call. The name lookup is a content query and the
+     * telephony callback arrives on the main thread mid-ring, so it happens
+     * off it.
+     */
+    private fun pushCallState(state: String, number: String?) {
+        Thread {
+            val name = number?.takeIf { it.isNotBlank() }
+                ?.let { PhoneData.contactName(applicationContext, it) }
+            // Whether we identified the caller, never who: the number and
+            // the name are the two things that must not reach logcat.
+            android.util.Log.i(
+                "TethrCall",
+                "state=$state number=${number != null} named=${name != null}"
+            )
+            sendJson(
+                JSONObject()
+                    .put("type", "callState")
+                    .put("state", state)
+                    .apply {
+                        number?.let { put("number", it) }
+                        name?.let { put("name", it) }
+                    }
+            )
+        }.start()
+    }
+
+    /**
+     * The current call state, sent unprompted rather than on a transition.
+     *
+     * Sent whenever a Mac finishes verifying, and whenever one asks: a Mac that
+     * slept through the end of a call has no other way to find out it is over.
+     */
+    fun pushCallStateSnapshot() {
+        val ctrl = callController ?: return
+        val state = ctrl.currentState
+        pushCallState(state, if (state == "idle") null else ctrl.currentNumber)
+        sendCallAudio()
+    }
+
     private fun sendCallAudio() {
         val c = callController ?: return
         sendJson(

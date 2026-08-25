@@ -67,6 +67,27 @@ final class LinkBridge: ObservableObject {
     }
 
     func start() {
+        // Waking is the one moment the Mac knows its picture of the phone may
+        // be wrong: call state is pushed on transitions, and any transition
+        // that happened while this machine was asleep was sent into a dead
+        // socket. Without asking, a call that ended overnight is still on
+        // screen in the morning, timer and all.
+        NSWorkspace.shared.notificationCenter.addObserver(
+            forName: NSWorkspace.didWakeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.pairing.requestState() }
+        }
+        // Same reasoning for a link that dropped and came back: the phone sends
+        // a snapshot once it has verified a Mac, and this covers a socket that
+        // was replaced without the phone re-running that path.
+        pairing.$phase
+            .removeDuplicates()
+            .sink { [weak self] phase in
+                guard phase == .connected else { return }
+                self?.pairing.requestState()
+            }
+            .store(in: &cancellables)
+
         pairing.$hasPaired.sink { [state] in state.setPhonePaired($0) }.store(in: &cancellables)
         pairing.$liveContacts.sink { [state] in state.liveContacts = $0 }.store(in: &cancellables)
         pairing.$liveRecents.sink { [state] in state.liveRecents = $0 }.store(in: &cancellables)
