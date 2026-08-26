@@ -43,18 +43,23 @@ Grab the two files from the [latest release][releases] — no compiler needed.
 > Intel Mac needs to build from source. So does macOS 14 or 15, with the
 > platform floor in `mac/Package.swift` lowered back to `.macOS(.v14)`.
 
-**Homebrew** (one command, nothing else to do):
-
-```sh
-brew install --cask nraj07054/tethr/tethr
-```
-
-**Or download it** — paste this into Terminal:
+**Download it** — paste this into Terminal:
 
 ```sh
 curl -L -o /tmp/Tethr.zip https://github.com/nraj07054/tethr/releases/latest/download/Tethr-macOS.zip
 unzip -q -o /tmp/Tethr.zip -d /Applications && open /Applications/Tethr.app
 ```
+
+**Or Homebrew**, if you would rather `brew upgrade` handled it — two commands,
+because Homebrew quarantines what it installs and no longer offers a way to opt
+out:
+
+```sh
+brew install --cask nraj07054/tethr/tethr
+xattr -dr com.apple.quarantine /Applications/Tethr.app
+```
+
+Skip that second line and macOS refuses to open the app. See below for why.
 
 Then allow **Local Network** access when asked — the phone reaches the Mac over
 your LAN and the link cannot work without it.
@@ -62,14 +67,18 @@ your LAN and the link cannot work without it.
 <details>
 <summary>Why not just download it in the browser?</summary>
 
-You can, but you will hit *"Tethr is damaged and can't be opened."* Nothing is
-damaged. Tethr is signed ad-hoc rather than notarised by Apple, because
-notarisation requires a paid Apple Developer account this project does not have,
-and that is the only message macOS has for it.
+You can, but macOS will refuse to open it — *"Apple could not verify 'Tethr' is
+free of malware..."*, or on older versions *"Tethr is damaged and can't be
+opened."* Nothing is damaged. Tethr is signed ad-hoc rather than notarised by
+Apple, because notarisation requires a paid Apple Developer account this project
+does not have, and those are the only messages macOS has for it.
 
-Browsers tag downloads with a `com.apple.quarantine` attribute; `curl` and
-Homebrew do not, which is why the commands above simply work. If you did use a
-browser, clear the tag once:
+What triggers them is the `com.apple.quarantine` attribute. Browsers set it on
+anything they download, and so does Homebrew — it tags every cask, and as of
+Homebrew 6 the `--no-quarantine` opt-out is gone, so the tag has to be cleared
+afterwards. `curl` never sets it, which is why that route needs nothing extra.
+
+However you got here, clearing the tag once is the fix:
 
 ```sh
 xattr -dr com.apple.quarantine /Applications/Tethr.app
