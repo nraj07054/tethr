@@ -83,8 +83,17 @@ result is identical.
 
 ### Android
 
-1. Download `Tethr-android.apk` to the phone.
-2. Tap it and allow installing from that source when prompted.
+Open this link **on the phone** — it always points at the newest release:
+
+**[⬇ Download Tethr-android.apk][apk]**
+
+[apk]: https://github.com/nraj07054/tethr/releases/latest/download/Tethr-android.apk
+
+1. Chrome warns that this type of file can harm your device. It says that about
+   every APK, signed or not. Tap **Download anyway** (or **Keep**).
+2. Open it from the download notification, or Files > Downloads. Android asks
+   whether Chrome may install unknown apps; allow it, and Play Protect may ask
+   to scan first. Both are expected for an app installed outside the Play Store.
 3. Open Tethr and grant the permissions it asks for. Each one buys a feature and
    nothing works silently without it:
 
@@ -95,6 +104,13 @@ result is identical.
    | Accessibility (*Tethr — Control from Mac*) | Tapping and swiping the mirrored screen |
    | Display over other apps | Reading the clipboard while Tethr is in the background |
    | Battery: unrestricted | Stops Android pausing the link to save power |
+
+Already have the phone plugged into the Mac with USB debugging on? Skip the
+browser entirely:
+
+```sh
+adb install -r Tethr-android.apk
+```
 
 ### Pair
 
