@@ -6,7 +6,9 @@
 # without the "damaged" warning that unnotarised apps otherwise produce.
 cask "tethr" do
   version "1.0.0"
-  sha256 :no_check
+  # Verified against the v1.0.0 zip. The release workflow prints this digest
+  # as a notice, so a new release can be picked up straight from the run log.
+  sha256 "10a377a30992134a7b3a3e7cc2b651d46cf1a8c9935a1612c1663911377b18d7"
 
   url "https://github.com/nraj07054/tethr/releases/download/v#{version}/Tethr-macOS.zip"
   name "Tethr"
@@ -15,7 +17,7 @@ cask "tethr" do
 
   # The build is Tahoe-only (LSMinimumSystemVersion 26.0). Without this Homebrew
   # would happily install a binary the machine cannot launch.
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
 
   app "Tethr.app"
 
