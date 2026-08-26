@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tethr — your Android phone, on your Mac</title>
+<meta name="description" content="Tethr links an Android phone to a macOS app over your own Wi-Fi. No account, no cloud, everything stays on your LAN.">
+<link rel="icon" href="tethr-logo.png">
+<meta property="og:title" content="Tethr — your Android phone, on your Mac">
+<meta property="og:description" content="Screen mirroring, calls, messages, notifications, clipboard and file transfer — over your own Wi-Fi, with no account and no cloud.">
+<meta property="og:image" content="tethr-logo.png">
+<style>
+  /* Glide — the same tokens the Mac and Android apps are built from. */
+  :root {
+    --canvas: #EFEFF1;
+    --surface: #FFFFFF;
+    --surface-alt: #F2F2F5;
+    --ink: #101114;
+    --ink-soft: #6C6D74;
+    --ink-faint: #9C9DA4;
+    --hairline: #E5E5E9;
+    --ink-fill: #121317;
+    --on-ink: #FFFFFF;
+    --green: #1FA85A;
+    --blue: #2563EB;
+    --shadow: 0 4px 18px rgba(16, 17, 20, .07);
+    --shadow-lg: 0 10px 34px rgba(16, 17, 20, .10);
+    --r-card: 24px;
+    --r-tile: 18px;
+    --r-control: 13px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --canvas: #0F1014;
+      --surface: #1A1C22;
+      --surface-alt: #23252C;
+      --ink: #F6F6F8;
+      --ink-soft: #9C9EA6;
+      --ink-faint: #6B6D75;
+      --hairline: #2B2D35;
+      --ink-fill: #F6F6F8;
+      --on-ink: #101114;
+      --green: #34C759;
+      --blue: #5B8DEF;
+      --shadow: 0 4px 18px rgba(0, 0, 0, .35);
+      --shadow-lg: 0 10px 34px rgba(0, 0, 0, .45);
+    }
+  }
+
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--canvas);
+    color: var(--ink);
+    font: 400 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 880px; margin: 0 auto; padding: 0 22px; }
+
+  /* ── Hero ─────────────────────────────────────────────────────────── */
+  header { padding: 72px 0 44px; text-align: center; }
+  .mark {
+    width: 92px; height: 92px; border-radius: 26px;
+    box-shadow: var(--shadow-lg); display: block; margin: 0 auto 26px;
+  }
+  h1 {
+    margin: 0 0 12px; font-size: 44px; line-height: 1.1;
+    letter-spacing: -1.4px; font-weight: 800;
+  }
+  .tagline {
+    margin: 0 auto; max-width: 30em; font-size: 18px;
+    color: var(--ink-soft); line-height: 1.55;
+  }
+  .wip {
+    display: inline-block; margin-top: 22px; padding: 7px 14px;
+    background: var(--surface-alt); border: 1px solid var(--hairline);
+    border-radius: 999px; font-size: 12.5px; color: var(--ink-soft);
+  }
+
+  /* ── Download ─────────────────────────────────────────────────────── */
+  .downloads {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 8px 0 14px;
+  }
+  @media (max-width: 620px) { .downloads { grid-template-columns: 1fr; } }
+  .dl {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: var(--r-tile); padding: 20px 22px;
+    box-shadow: var(--shadow); transition: transform .16s ease, box-shadow .16s ease;
+  }
+  .dl:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+  .dl:active { transform: translateY(0); }
+  .dl .os { font-size: 12px; letter-spacing: .7px; text-transform: uppercase;
+            color: var(--ink-faint); font-weight: 700; }
+  .dl .name { font-size: 19px; font-weight: 700; letter-spacing: -.3px; margin: 5px 0 3px; }
+  .dl .meta { font-size: 12.5px; color: var(--ink-soft); }
+  .dl .arrow { float: right; font-size: 20px; color: var(--ink-faint); }
+
+  .requirements {
+    font-size: 13px; color: var(--ink-soft); text-align: center;
+    margin: 0 0 56px;
+  }
+
+  /* ── Sections ─────────────────────────────────────────────────────── */
+  section { margin: 0 0 46px; }
+  h2 {
+    font-size: 13px; letter-spacing: .9px; text-transform: uppercase;
+    color: var(--ink-faint); font-weight: 700; margin: 0 0 16px;
+  }
+  .card {
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: var(--r-card); padding: 26px 28px; box-shadow: var(--shadow);
+  }
+  .card + .card { margin-top: 16px; }
+  h3 { font-size: 18px; font-weight: 700; letter-spacing: -.3px; margin: 0 0 4px; }
+  .sub { font-size: 13.5px; color: var(--ink-soft); margin: 0 0 18px; }
+
+  ol { margin: 0; padding-left: 0; list-style: none; counter-reset: step; }
+  ol li {
+    counter-increment: step; position: relative;
+    padding: 0 0 18px 38px; font-size: 14.5px;
+  }
+  ol li:last-child { padding-bottom: 0; }
+  ol li::before {
+    content: counter(step); position: absolute; left: 0; top: 1px;
+    width: 24px; height: 24px; border-radius: 8px;
+    background: var(--ink-fill); color: var(--on-ink);
+    font-size: 12px; font-weight: 700; display: grid; place-items: center;
+  }
+  li strong { font-weight: 650; }
+
+  pre {
+    margin: 12px 0 0; padding: 14px 16px; overflow-x: auto;
+    background: var(--surface-alt); border-radius: var(--r-control);
+    font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+    color: var(--ink);
+  }
+  code { font: inherit; }
+  p code, li code {
+    background: var(--surface-alt); padding: 1.5px 6px;
+    border-radius: 6px; font-size: 13px;
+  }
+
+  .note {
+    margin-top: 16px; padding: 13px 16px; font-size: 13.5px;
+    background: var(--surface-alt); border-radius: var(--r-control);
+    color: var(--ink-soft); line-height: 1.55;
+  }
+  .note strong { color: var(--ink); font-weight: 650; }
+
+  /* ── Features ─────────────────────────────────────────────────────── */
+  .features { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 620px) { .features { grid-template-columns: 1fr; } }
+  .feature {
+    background: var(--surface); border: 1px solid var(--hairline);
+    border-radius: var(--r-tile); padding: 18px 20px; box-shadow: var(--shadow);
+  }
+  .feature h4 { margin: 0 0 5px; font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+  .feature p { margin: 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.55; }
+
+  .sec li { padding-left: 0; padding-bottom: 12px; font-size: 14px; color: var(--ink-soft); }
+  .sec li::before { display: none; }
+  .sec li strong { color: var(--ink); }
+
+  footer {
+    border-top: 1px solid var(--hairline); margin-top: 20px;
+    padding: 28px 0 56px; text-align: center;
+    font-size: 13px; color: var(--ink-faint);
+  }
+  a { color: var(--ink); }
+  footer a, .inline-link { color: var(--blue); text-decoration: none; }
+  footer a:hover, .inline-link:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <img class="mark" src="tethr-logo.png" alt="Tethr">
+    <h1>Your Android phone, on your Mac</h1>
+    <p class="tagline">
+      Tethr links an Android phone to a macOS app over your own Wi‑Fi.
+      No account, no cloud, nothing leaves your network.
+    </p>
+    <div class="wip">Work in progress · built and tested on one phone and one Mac</div>
+  </header>
+
+  <section>
+    <div class="downloads">
+      <a class="dl" href="https://github.com/nraj07054/tethr/releases/latest/download/Tethr-macOS.zip">
+        <span class="arrow">↓</span>
+        <div class="os">macOS</div>
+        <div class="name">Tethr for Mac</div>
+        <div class="meta">Apple silicon · macOS 26 or later</div>
+      </a>
+      <a class="dl" href="https://github.com/nraj07054/tethr/releases/latest/download/Tethr-android.apk">
+        <span class="arrow">↓</span>
+        <div class="os">Android</div>
+        <div class="name">Tethr for Android</div>
+        <div class="meta">APK · Android 14 or later</div>
+      </a>
+    </div>
+    <p class="requirements">
+      You need both. Open the Android link <strong>on the phone</strong>.
+    </p>
+  </section>
+
+  <section>
+    <h2>Installing on the Mac</h2>
+
+    <div class="card">
+      <h3>With Homebrew</h3>
+      <p class="sub">Recommended, so <code>brew upgrade</code> keeps it current.</p>
+      <pre><code>brew install --cask nraj07054/tethr/tethr
+xattr -dr com.apple.quarantine /Applications/Tethr.app</code></pre>
+      <div class="note">
+        <strong>The second line is not optional.</strong> Homebrew tags everything it
+        installs, and macOS refuses to open a tagged app that Apple has not
+        notarised — you would see <em>“Apple could not verify ‘Tethr’ is free of
+        malware.”</em> Run it again after every <code>brew upgrade</code>, which
+        re-tags the app.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Without Homebrew</h3>
+      <p class="sub">One command, and nothing to clear afterwards.</p>
+      <pre><code>curl -L -o /tmp/Tethr.zip https://github.com/nraj07054/tethr/releases/latest/download/Tethr-macOS.zip
+unzip -q -o /tmp/Tethr.zip -d /Applications &amp;&amp; open /Applications/Tethr.app</code></pre>
+      <div class="note">
+        Downloading the zip in a browser instead will not work on its own —
+        browsers apply the same quarantine tag. <code>curl</code> does not, which
+        is why this route needs no extra step. If you already downloaded it in a
+        browser, run the <code>xattr</code> line above once.
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Why the warning happens at all</h3>
+      <p class="sub" style="margin:0">
+        Tethr is signed ad‑hoc rather than notarised by Apple, because notarising
+        requires a paid Apple Developer account this project does not have. That
+        is the only message macOS has for an app in that position — nothing is
+        damaged, and clearing the tag does not disable Gatekeeper, which still
+        checks the signature. If you would rather not take that on trust,
+        <a class="inline-link" href="https://github.com/nraj07054/tethr#build-from-source">build it from source</a>;
+        it is one command and the result is identical.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <h2>Installing on the phone</h2>
+    <div class="card">
+      <ol>
+        <li>
+          <strong>Open the Android download link on the phone.</strong>
+          Chrome will warn that this type of file can harm your device — it says
+          that about every APK, signed or not. Tap <strong>Download anyway</strong>.
+        </li>
+        <li>
+          <strong>Open it</strong> from the download notification, or from
+          Files → Downloads. Android asks whether Chrome may install unknown
+          apps; allow it. Play Protect may offer to scan first — both prompts are
+          normal for an app installed outside the Play Store.
+        </li>
+        <li>
+          <strong>Grant the permissions it asks for.</strong> Each one buys a
+          feature and nothing works silently without it: contacts, call log and
+          phone for calls; SMS for messages; notification access for the shade;
+          accessibility for controlling the screen; display-over-other-apps for
+          the clipboard; and unrestricted battery so Android stops pausing the
+          link.
+        </li>
+      </ol>
+      <div class="note">
+        Tethr is not on the Play Store and cannot be. Reading SMS needs
+        <code>READ_SMS</code>, which Google grants only to a phone’s default
+        messaging app — so Messages exists only because Tethr is installed
+        directly.
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Pairing</h2>
+    <div class="card">
+      <ol>
+        <li><strong>Open Tethr on the Mac.</strong> It shows a QR code, and asks
+          for <strong>Local Network</strong> access — the phone reaches the Mac
+          over your LAN, and the link cannot work without it.</li>
+        <li><strong>Open Tethr on the phone and scan the code.</strong> That
+          happens once. After that the two find each other on their own whenever
+          both are on the same network.</li>
+      </ol>
+    </div>
+  </section>
+
+  <section>
+    <h2>What it does</h2>
+    <div class="features">
+      <div class="feature"><h4>Screen mirroring</h4><p>The phone’s screen, live, in a phone-shaped window on the Mac.</p></div>
+      <div class="feature"><h4>Remote control</h4><p>Click and drag to tap and swipe. Back, Home and Recents.</p></div>
+      <div class="feature"><h4>Calls</h4><p>Call history, dial from the Mac, caller ID, and a floating call card.</p></div>
+      <div class="feature"><h4>Messages</h4><p>SMS threads on a real keyboard. On a dual-SIM phone, replies leave from the right SIM.</p></div>
+      <div class="feature"><h4>Notifications</h4><p>Mirrored with the real app name and icon, and repliable inline.</p></div>
+      <div class="feature"><h4>Clipboard</h4><p>Copy on one, paste on the other. Password and one-time-code copies are left behind.</p></div>
+      <div class="feature"><h4>File transfer</h4><p>Drag files onto the Mac, or share to Tethr from any Android app.</p></div>
+      <div class="feature"><h4>Contacts</h4><p>The phone’s address book, synced across.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Security</h2>
+    <div class="card">
+      <ol class="sec">
+        <li><strong>No account, no server, no cloud.</strong> The two devices talk directly over your network.</li>
+        <li><strong>Pairing happens once, by QR.</strong> The shared secret never crosses the wire again — each connection proves it knows it with an HMAC‑SHA256 challenge over two fresh nonces, so a recorded handshake is useless later.</li>
+        <li><strong>Everything after the handshake is encrypted</strong> with AES‑256‑GCM, keyed per connection and per direction, with counters that make replays fail.</li>
+        <li><strong>Unlinking is authenticated</strong>, so nobody on the network can unpair your phone by sending a packet.</li>
+      </ol>
+      <div class="note">
+        Tethr reads your messages, contacts and call log, and can drive your
+        phone. You should not take any of the above on faith —
+        <a class="inline-link" href="https://github.com/nraj07054/tethr#security">the source is public</a>,
+        and if you find something wrong with it, please open an issue.
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <a href="https://github.com/nraj07054/tethr">Source on GitHub</a> ·
+    <a href="https://github.com/nraj07054/tethr/releases">All releases</a> ·
+    <a href="https://github.com/nraj07054/tethr/issues">Report an issue</a>
+    <div style="margin-top:8px">MIT licensed</div>
+  </footer>
+
+</div>
+</body>
+</html>
