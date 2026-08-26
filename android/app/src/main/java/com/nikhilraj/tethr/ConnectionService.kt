@@ -114,6 +114,8 @@ class ConnectionService : Service() {
     // A call's row is written and then updated (with its duration) moments after
     // the call ends, so the pushes those changes trigger are coalesced into one.
     private val callLogPush = Runnable { pushPhoneData(contacts = false, callLog = true) }
+    private var smsObserver: ContentObserver? = null
+    private val smsPush = Runnable { pushThreads() }
     // Bumped on every connect() so callbacks from a superseded socket are
     // ignored — stops a cancelled old socket from triggering a reconnect storm.
     private var generation = 0
@@ -475,7 +477,23 @@ class ConnectionService : Service() {
 
             private fun handleText(webSocket: WebSocket, text: String) {
                 val msg = runCatching { JSONObject(text) }.getOrNull() ?: return
-                when (msg.optString("type")) {
+                val type = msg.optString("type")
+                // Commands are only ever taken from a Mac that has proved it
+                // holds the secret. This method is reached two ways: sealed
+                // frames, which are authentic by construction, and the
+                // plaintext path — which runs precisely while crypto is null.
+                // Without this line every command below was reachable before
+                // any handshake. The phone dials whatever it discovers, so a
+                // host advertising _tethr._tcp could accept the connection and
+                // send one plaintext frame to dial a premium number, read the
+                // screen, dump the address book, or now text from the phone.
+                // The handshake types are the exceptions, and "unlink" carries
+                // its own proof because it has to work before a session exists.
+                if (crypto == null && type !in HANDSHAKE_TYPES) {
+                    android.util.Log.w("TethrLink", "ignored an unauthenticated '$type'")
+                    return
+                }
+                when (type) {
                     // Answer the Mac's challenge. A paired phone proves it
                     // knows the secret rather than handing it over, so a Mac
                     // impersonating ours learns nothing it can reuse.
@@ -517,6 +535,27 @@ class ConnectionService : Service() {
                         msg.optString("key"), msg.optString("text")
                     )
                     "getNotifications" -> TethrNotificationService.instance?.pushAll()
+                    "getThreads" -> pushThreads()
+                    "sendSms" -> {
+                        val address = msg.optString("address")
+                        val text = msg.optString("text")
+                        // -1 when the Mac has no thread to take it from, which
+                        // means "whatever the phone's default SMS SIM is".
+                        val subId = msg.optInt("subId", -1)
+                        Thread {
+                            val ok = Sms.send(applicationContext, address, text, subId)
+                            // Length only: a message body is exactly the kind of
+                            // thing that must not be written to logcat.
+                            android.util.Log.i("TethrSms", "send ok=$ok chars=${text.length}")
+                            // The provider writes the sent row a beat later, so
+                            // the resend that echoes it back is deliberately late.
+                            if (ok) handler.post { scheduleSmsPush(SMS_SETTLE_MS) }
+                        }.start()
+                    }
+                    "markThreadRead" -> {
+                        val id = msg.optString("threadId")
+                        Thread { Sms.markRead(applicationContext, id) }.start()
+                    }
                     // A Mac catching up after sleep: it cannot trust what it
                     // was last told, so it asks rather than assumes.
                     "requestState" -> handler.post { pushCallStateSnapshot() }
@@ -640,6 +679,8 @@ class ConnectionService : Service() {
                             pushCallStateSnapshot()
                             pushPhoneData()
                             startCallLogWatch()
+                            startSmsWatch()
+                            pushThreads()
                             startClipWatch()
                             pushClipboard()
                             flushPendingSends()
@@ -793,6 +834,42 @@ class ConnectionService : Service() {
             contentResolver.registerContentObserver(CallLog.Calls.CONTENT_URI, true, observer)
         }.isSuccess
         if (registered) callLogObserver = observer
+    }
+
+    /**
+     * Mirrors the SMS store to the Mac as it changes, so a text that arrives
+     * while you are reading on the Mac shows up there. Like the call-log watch,
+     * registration needs a permission that is often granted long after the
+     * service starts, so it is retried from every path that pushes threads.
+     */
+    private fun startSmsWatch() {
+        if (smsObserver != null) return
+        if (!Sms.canRead(this)) return
+        val observer = object : ContentObserver(handler) {
+            override fun onChange(selfChange: Boolean) = scheduleSmsPush(SMS_DEBOUNCE_MS)
+        }
+        val registered = runCatching {
+            contentResolver.registerContentObserver(Sms.OBSERVE_URI, true, observer)
+        }.isSuccess
+        if (registered) smsObserver = observer
+    }
+
+    private fun scheduleSmsPush(delayMs: Long) {
+        handler.removeCallbacks(smsPush)
+        handler.postDelayed(smsPush, delayMs)
+    }
+
+    /** Queries the SMS threads off the main thread and streams them to the Mac. */
+    private fun pushThreads() {
+        if (socket == null) return
+        Thread {
+            val sims = Sms.simsMessage(applicationContext)
+            android.util.Log.i("TethrSms", "sims sent: ${sims.getJSONArray("items").length()}")
+            sendJson(sims)
+            val msg = Sms.threadsMessage(applicationContext)
+            android.util.Log.i("TethrSms", "threads sent: ${msg.getJSONArray("items").length()}")
+            sendJson(msg)
+        }.start()
     }
 
     /**
@@ -989,6 +1066,8 @@ class ConnectionService : Service() {
     private fun stopCallLogWatch() {
         callLogObserver?.let { runCatching { contentResolver.unregisterContentObserver(it) } }
         callLogObserver = null
+        smsObserver?.let { runCatching { contentResolver.unregisterContentObserver(it) } }
+        smsObserver = null
         handler.removeCallbacks(callLogPush)
     }
 
@@ -1008,6 +1087,8 @@ class ConnectionService : Service() {
             startCallController()
             startCallLogWatch()
             pushPhoneData()
+            startSmsWatch()
+            pushThreads()
         }
     }
 
@@ -1140,7 +1221,14 @@ class ConnectionService : Service() {
         private const val MAX_QUEUED_BYTES = 256L * 1024
         // Quiet window after a call-log change before pushing: one call writes
         // its row and then updates it, and we want to send the finished picture.
+        /** The only messages accepted before a session key exists. */
+        private val HANDSHAKE_TYPES = setOf("challenge", "paired", "rejected", "unlink")
+
         private const val CALL_LOG_DEBOUNCE_MS = 1_200L
+        private const val SMS_DEBOUNCE_MS = 800L
+        // Longer: the provider writes a sent message a beat after the send call
+        // returns, and pushing before that echoes back a thread without it.
+        private const val SMS_SETTLE_MS = 1_500L
         // Longer wait from "call ended" — the row may not exist yet at that point.
         private const val CALL_LOG_SETTLE_MS = 2_500L
         // ~30 fps ceiling on encode/send work.
