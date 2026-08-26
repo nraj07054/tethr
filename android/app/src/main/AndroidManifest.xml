@@ -25,6 +25,12 @@
     <uses-permission android:name="android.permission.ANSWER_PHONE_CALLS" />
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
 
+    <!-- Messages. Restricted permissions that Google Play only grants to a
+         device's default SMS handler, so holding them rules out ever publishing
+         Tethr on Play — which it is not, being sideloaded from GitHub. -->
+    <uses-permission android:name="android.permission.READ_SMS" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
+
     <!-- Not for drawing anything: since Android 10 the clipboard is readable
          only by the app holding window focus, so answering the Mac's "what's on
          your clipboard" needs a momentary focusable overlay. See ClipboardReader. -->

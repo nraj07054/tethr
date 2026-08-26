@@ -100,6 +100,11 @@ class MainActivity : ComponentActivity() {
             Manifest.permission.CALL_PHONE,
             Manifest.permission.READ_PHONE_STATE,
             Manifest.permission.ANSWER_PHONE_CALLS,
+            // Messages. Asked for alongside the rest rather than behind their
+            // own prompt: refusing them costs the Messages tab and nothing else,
+            // and the Mac copes with an empty thread list either way.
+            Manifest.permission.READ_SMS,
+            Manifest.permission.SEND_SMS,
         ).filter {
             checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED
         }

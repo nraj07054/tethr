@@ -38,6 +38,10 @@ final class AppCore {
         state.onHangup = { [pairing] in pairing.hangup() }
         state.onSetMute = { [pairing] in pairing.setMute($0) }
         state.onSetSpeaker = { [pairing] in pairing.setSpeaker($0) }
+        state.onSendMessage = { [pairing] address, text, subId in
+            pairing.sendSms(to: address, text: text, subId: subId)
+        }
+        state.onThreadRead = { [pairing] in pairing.markThreadRead($0) }
         clipboard.attach(to: pairing)
         // Wired here rather than in a view: a file can arrive whether or not
         // any window is open, and it needs somewhere to land either way.
@@ -93,6 +97,11 @@ final class LinkBridge: ObservableObject {
         pairing.$liveRecents.sink { [state] in state.liveRecents = $0 }.store(in: &cancellables)
         pairing.$liveNotifications.sink { [state] in state.notifications = $0 }.store(in: &cancellables)
         pairing.$liveClips.sink { [state] in state.liveClips = $0 }.store(in: &cancellables)
+        // Threads replace wholesale rather than merge: the phone sends each
+        // conversation as it now stands, and its row ids keep SwiftUI from
+        // treating an updated thread as a brand-new one.
+        pairing.$liveThreads.sink { [state] in state.applyThreads($0) }.store(in: &cancellables)
+        pairing.$liveSims.sink { [state] in state.sims = $0 }.store(in: &cancellables)
         pairing.$muted.sink { [state] in state.muted = $0 }.store(in: &cancellables)
         pairing.$speaker.sink { [state] in state.speaker = $0 }.store(in: &cancellables)
 

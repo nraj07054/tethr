@@ -6,6 +6,7 @@ struct MessagesView: View {
     @EnvironmentObject var pairing: PairingManager
     @State private var draft = ""
     @State private var search = ""
+    @State private var composing = false
     @FocusState private var draftFocused: Bool
 
     private var filteredThreads: [MessageThread] {
@@ -33,9 +34,22 @@ struct MessagesView: View {
                 VStack(spacing: 0) {
                     ScreenHeader(title: "Messages", subtitle: "Texts from your phone, typed on a real keyboard")
                     if state.contentAvailable {
-                        EmptyState(symbol: "message",
-                                   title: "No Messages Yet",
-                                   caption: "Conversations appear here once the Tethr app on your phone syncs your texts.")
+                        VStack(spacing: 16) {
+                            EmptyState(symbol: "message",
+                                       title: "No Messages Yet",
+                                       caption: "Conversations appear here once the Tethr app on your phone syncs your texts.")
+                            // Without this there is no way to reach the composer
+                            // at all until a text happens to arrive.
+                            Button { composing = true } label: {
+                                Text("New Message")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(Glide.onInk)
+                                    .padding(.horizontal, 18)
+                                    .frame(height: 34)
+                                    .background(Glide.inkFill, in: Capsule())
+                            }
+                            .buttonStyle(PressableStyle())
+                        }
                     } else {
                         PairPrompt(symbol: "message",
                                    title: "Texts on Your Mac",
@@ -45,6 +59,12 @@ struct MessagesView: View {
             }
         }
         .onAppear { state.markThreadRead(state.selectedThread) }
+        .sheet(isPresented: $composing) {
+            NewMessageSheet { address, text, subId in
+                state.startMessage(to: address, text: text, subId: subId)
+            }
+            .environmentObject(state)
+        }
     }
 
     private var threadList: some View {
@@ -55,7 +75,9 @@ struct MessagesView: View {
                     .kerning(-0.7)
                     .foregroundStyle(Glide.ink)
                 Spacer()
-                CircleIconButton(symbol: "square.and.pencil", hint: "New message") {}
+                CircleIconButton(symbol: "square.and.pencil", hint: "New message") {
+                    composing = true
+                }
             }
 
             SearchField(placeholder: "Search", text: $search)
@@ -91,7 +113,9 @@ struct MessagesView: View {
                         Text(thread.name)
                             .font(.system(size: 15, weight: .semibold))
                             .foregroundStyle(Glide.ink)
-                        Text("SMS · via \(pairing.deviceName ?? "your phone")")
+                        Text(thread.sim.isEmpty
+                             ? "SMS · via \(pairing.deviceName ?? "your phone")"
+                             : "SMS · \(thread.sim) · via \(pairing.deviceName ?? "your phone")")
                             .font(.system(size: 11.5))
                             .foregroundStyle(Glide.inkSoft)
                     }
@@ -194,6 +218,151 @@ struct MessagesView: View {
         state.sendMessage(draft)
         draft = ""
         draftFocused = true
+    }
+}
+
+/// Starting a conversation that does not exist yet.
+///
+/// Recipients come from the synced address book, but the field takes a typed
+/// number too — a first text often goes to someone who is not saved yet, and
+/// requiring a contact first would be the wrong way round.
+private struct NewMessageSheet: View {
+    @EnvironmentObject var state: AppState
+    @Environment(\.dismiss) private var dismiss
+    let send: (String, String, Int) -> Void
+
+    @State private var to = ""
+    @State private var body_ = ""
+    @State private var subId = -1
+    @FocusState private var toFocused: Bool
+
+    /// Contacts matching what has been typed, by name or by number.
+    private var suggestions: [Contact] {
+        let q = to.trimmingCharacters(in: .whitespaces)
+        guard q.count >= 2 else { return [] }
+        // Nothing to suggest once the typed text *is* the chosen recipient.
+        if state.contacts.contains(where: { $0.number == q }) { return [] }
+        return Array(
+            state.contacts.filter {
+                $0.name.localizedCaseInsensitiveContains(q)
+                    || $0.number.filter(\.isNumber).contains(q.filter(\.isNumber))
+            }.prefix(5)
+        )
+    }
+
+    private var address: String { to.trimmingCharacters(in: .whitespaces) }
+    private var canSend: Bool {
+        !address.isEmpty && !body_.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Text("New Message")
+                .font(.system(size: 19, weight: .bold))
+                .kerning(-0.3)
+                .foregroundStyle(Glide.ink)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("To")
+                    .font(.system(size: 11, weight: .semibold))
+                    .kerning(0.5)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Glide.inkSoft)
+                TextField("Name or number", text: $to)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14))
+                    .focused($toFocused)
+                    .padding(.horizontal, 13)
+                    .frame(height: 38)
+                    .background(Glide.surfaceAlt, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+
+                ForEach(suggestions) { contact in
+                    Button {
+                        to = contact.number
+                        toFocused = false
+                    } label: {
+                        HStack(spacing: 10) {
+                            Thumb(initials: contact.initials, tint: contact.tint, size: 28, radius: 9)
+                            Text(contact.name)
+                                .font(.system(size: 13))
+                                .foregroundStyle(Glide.ink)
+                            Spacer()
+                            Text(contact.number)
+                                .font(.system(size: 11.5))
+                                .foregroundStyle(Glide.inkSoft)
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            // Only shown on a dual-SIM phone: the phone sends an empty list
+            // when there is nothing to choose between.
+            if state.sims.count > 1 {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Send from")
+                        .font(.system(size: 11, weight: .semibold))
+                        .kerning(0.5)
+                        .textCase(.uppercase)
+                        .foregroundStyle(Glide.inkSoft)
+                    Picker("", selection: $subId) {
+                        ForEach(state.sims) { sim in
+                            Text("SIM \(sim.slot) · \(sim.label)").tag(sim.id)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                }
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Message")
+                    .font(.system(size: 11, weight: .semibold))
+                    .kerning(0.5)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Glide.inkSoft)
+                TextEditor(text: $body_)
+                    .font(.system(size: 14))
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .frame(height: 96)
+                    .background(Glide.surfaceAlt, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            }
+
+            HStack {
+                Spacer()
+                Button("Cancel") { dismiss() }
+                    .buttonStyle(.plain)
+                    .font(.system(size: 13))
+                    .foregroundStyle(Glide.inkSoft)
+                Button {
+                    send(address, body_, subId)
+                    dismiss()
+                } label: {
+                    Text("Send")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Glide.onInk)
+                        .padding(.horizontal, 18)
+                        .frame(height: 34)
+                        .background(Glide.inkFill, in: Capsule())
+                        .opacity(canSend ? 1 : 0.4)
+                }
+                .buttonStyle(PressableStyle())
+                .disabled(!canSend)
+            }
+        }
+        .padding(22)
+        .frame(width: 420)
+        .background(Glide.surface)
+        .onAppear {
+            toFocused = true
+            // Default to the first SIM rather than -1, so the segmented control
+            // never opens with nothing selected.
+            if subId < 0, let first = state.sims.first { subId = first.id }
+        }
     }
 }
 

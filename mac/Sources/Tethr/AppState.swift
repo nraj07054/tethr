@@ -49,7 +49,9 @@ enum NavItem: String, CaseIterable, Identifiable {
 @MainActor
 final class AppState: ObservableObject {
     @Published var nav: NavItem = .mirror
-    @Published var selectedThread: MessageThread.ID = UUID()
+    /// Empty until a thread is picked or one arrives; `currentThread` falls
+    /// back to the newest, so the pane is never blank when there is mail.
+    @Published var selectedThread: MessageThread.ID = ""
     @Published var threads: [MessageThread] = []
     @Published var notifications: [AppNotification] = []
     /// True once a phone is paired — unlocks screen content.
@@ -59,6 +61,8 @@ final class AppState: ObservableObject {
     @Published var liveContacts: [Contact] = []
     @Published var liveRecents: [RecentCall] = []
     @Published var liveClips: [ClipItem] = []
+    /// The phone's SIMs, when it has more than one.
+    @Published var sims: [SimCard] = []
 
     // Current call presentation (driven by the phone's telephony state).
     @Published var callerName: String = ""
@@ -97,6 +101,10 @@ final class AppState: ObservableObject {
     var onHangup: (() -> Void)?
     var onSetMute: ((Bool) -> Void)?
     var onSetSpeaker: ((Bool) -> Void)?
+    /// (address, text, subId) — routed to the phone, which actually sends it.
+    /// `subId` names the SIM; -1 leaves the choice to the phone's default.
+    var onSendMessage: ((String, String, Int) -> Void)?
+    var onThreadRead: ((String) -> Void)?
 
     /// Who is calling. The phone resolves the name against its own address book,
     /// which is the reliable answer; matching the synced contacts is the
@@ -233,19 +241,64 @@ final class AppState: ObservableObject {
         markThreadRead(id)
     }
 
+    /// Starts a conversation that has no thread yet.
+    ///
+    /// Nothing is added locally: the phone has to write the message before a
+    /// thread id exists, and inventing one here would leave a placeholder that
+    /// the phone's own copy could never merge with. It comes back as a real
+    /// thread within a beat, and is selected then.
+    func startMessage(to address: String, text: String, subId: Int) {
+        let number = address.trimmingCharacters(in: .whitespaces)
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !number.isEmpty, !trimmed.isEmpty else { return }
+        awaitingThreadFor = number
+        onSendMessage?(number, trimmed, subId)
+    }
+
+    /// The recipient of a message sent before its thread existed, so the thread
+    /// can be opened as soon as the phone reports it.
+    private var awaitingThreadFor: String?
+
+    /// Called when a fresh set of threads arrives from the phone.
+    func applyThreads(_ incoming: [MessageThread]) {
+        threads = incoming
+        guard let wanted = awaitingThreadFor else { return }
+        let digits = wanted.filter(\.isNumber)
+        if let match = incoming.first(where: {
+            $0.address == wanted || (!digits.isEmpty && $0.address.filter(\.isNumber).hasSuffix(digits))
+        }) {
+            selectedThread = match.id
+            awaitingThreadFor = nil
+        }
+    }
+
     func markThreadRead(_ id: MessageThread.ID) {
         guard let i = threads.firstIndex(where: { $0.id == id }), threads[i].unread > 0 else { return }
         threads[i].unread = 0
+        // Clear it on the phone too, so reading on the Mac does not leave the
+        // notification sitting in the shade.
+        onThreadRead?(id)
     }
 
+    /// Sends `text` to the open thread, through the phone's own radio.
+    ///
+    /// The bubble is added straight away and the phone echoes the real row back
+    /// a moment later, replacing it. Waiting for that round trip instead would
+    /// leave the composer looking broken on a slow link.
     func sendMessage(_ text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty,
-              let i = threads.firstIndex(where: { $0.id == selectedThread }) else { return }
+              let i = threads.firstIndex(where: { $0.id == currentThread?.id }) else { return }
         let stamp = Date.now.formatted(date: .omitted, time: .shortened)
-        threads[i].messages.append(Message(me: true, text: trimmed, when: stamp))
+        threads[i].messages.append(
+            // Prefixed so it cannot collide with a provider row id, and so the
+            // echo that replaces it is not mistaken for a second message.
+            Message(id: "pending-\(UUID().uuidString)", me: true, text: trimmed, when: stamp)
+        )
         threads[i].preview = trimmed
         threads[i].when = stamp
+        // Replies leave from the SIM the conversation is already on.
+        onSendMessage?(threads[i].address, trimmed, threads[i].subId)
     }
 
     func dismissNotification(_ id: AppNotification.ID) {

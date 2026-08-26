@@ -50,23 +50,50 @@ struct RecentCall: Identifiable {
 }
 
 struct Message: Identifiable {
-    let id = UUID()
+    /// The provider's row id, not a fresh UUID: the phone re-sends a thread
+    /// whenever anything in it changes, and a new id every time would animate
+    /// every bubble as if the whole conversation had just arrived.
+    let id: String
     let me: Bool
     let text: String
     let when: String
 }
 
+/// One of the phone's SIMs, for choosing which to send a new message from.
+struct SimCard: Identifiable, Equatable {
+    let id: Int          // the subscription id
+    let slot: Int
+    let label: String
+}
+
 struct MessageThread: Identifiable {
-    let id = UUID()
+    /// The phone's own thread id, for the same reason [Message.id] is.
+    let id: String
+    /// Where a reply goes. Kept apart from `name`, which may be a contact.
+    let address: String
+    /// The SIM this conversation is on. A reply has to leave from the same one
+    /// or the other side sees a number they have never been texted from.
+    /// -1 when the phone has only one SIM, or could not say.
+    let subId: Int
+    /// That SIM's name, for the header. Empty on a single-SIM phone, where
+    /// there is nothing to disambiguate.
+    let sim: String
     let name: String
     var preview: String
     var when: String
     var unread: Int
-    let tint: Color
     var messages: [Message]
 
     var initials: String {
         name.split(separator: " ").compactMap(\.first).prefix(2).map(String.init).joined()
+    }
+
+    /// Derived rather than stored, so the same person is always the same
+    /// colour however the thread arrives. Matches Contact.tint.
+    var tint: Color {
+        let key = initials.isEmpty ? address : name
+        let hash = key.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0x7fffffff }
+        return Palette.avatarTints[hash % Palette.avatarTints.count]
     }
 }
 
