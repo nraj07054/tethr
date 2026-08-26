@@ -5,10 +5,10 @@
 # setting the quarantine attribute a browser download would, so the app opens
 # without the "damaged" warning that unnotarised apps otherwise produce.
 cask "tethr" do
-  version "1.1.1"
-  # Verified against the v1.1.1 zip. The release workflow prints this digest
+  version "1.1.2"
+  # Verified against the v1.1.2 zip. The release workflow prints this digest
   # as a notice, so a new release can be picked up straight from the run log.
-  sha256 "2fd433987914059de581eb00e061498b330787e5dcfbaa68c5a39b77ac4e1279"
+  sha256 "a430ec7b61d3e50b167030473e2d7e21f2f79cafaa2e9974b9ffb85317203413"
 
   url "https://github.com/nraj07054/tethr/releases/download/v#{version}/Tethr-macOS.zip"
   name "Tethr"
