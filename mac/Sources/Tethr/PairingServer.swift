@@ -38,6 +38,10 @@ final class PairingManager: ObservableObject {
     @Published var notificationAccess = false
     /// Clipboard history synced from the phone, newest first.
     @Published var liveClips: [ClipItem] = []
+    @Published var liveThreads: [MessageThread] = []
+    /// Empty on a single-SIM phone — the phone only sends these when there is
+    /// genuinely a choice to make.
+    @Published var liveSims: [SimCard] = []
     /// The phone's latest copy, for ClipboardWatcher to put on the pasteboard.
     @Published var incomingClip: String?
     /// Real app icons mirrored from the phone, keyed by Android package. The
@@ -127,6 +131,17 @@ final class PairingManager: ObservableObject {
         battery = nil
         phase = .waiting
         hasPaired = false
+        // Everything the phone had synced goes with the pairing. None of it is
+        // written to disk, but leaving a former phone's texts, address book and
+        // clipboard sitting in a window that is no longer linked to anything is
+        // not something an unpair should leave behind.
+        liveThreads = []
+        liveSims = []
+        liveContacts = []
+        liveRecents = []
+        liveClips = []
+        liveNotifications = []
+        clearCallState()
     }
 
     // MARK: - Liveness
@@ -157,9 +172,14 @@ final class PairingManager: ObservableObject {
     /// Mac again. Leaving it on screen instead is how a call that ended hours
     /// ago was still sitting there, timer running, after the Mac woke up.
     private func clearCallState() {
+        // The phase only. Who is on the call is deliberately kept: nothing
+        // renders it while the phase is idle, and the phone often cannot
+        // re-supply it. Android never hands a third-party app the number of an
+        // *outgoing* call — the Mac only knows it because it dialled — so
+        // wiping it here left the panel reading "Unknown caller" for the rest
+        // of a call that merely blinked its link. The phone's own "idle", which
+        // means the call genuinely ended, still clears the name.
         callPhase = .idle
-        callerNumber = ""
-        callerName = ""
     }
 
     private func refreshPairURL() {
@@ -360,6 +380,43 @@ final class PairingManager: ObservableObject {
         case "mirrorStopped":
             DispatchQueue.main.async { self.mirrorFrame = nil }
 
+        case "threads":
+            let items = obj["items"] as? [[String: Any]] ?? []
+            let threads: [MessageThread] = items.compactMap { it in
+                guard let id = it["id"] as? String, !id.isEmpty else { return nil }
+                let rows = it["messages"] as? [[String: Any]] ?? []
+                let messages = rows.compactMap { m -> Message? in
+                    guard let mid = m["id"] as? String else { return nil }
+                    return Message(id: mid,
+                                   me: (m["me"] as? Bool) ?? false,
+                                   text: (m["text"] as? String) ?? "",
+                                   when: Self.shortTime(m["when"] as? Double))
+                }
+                let address = (it["address"] as? String) ?? ""
+                return MessageThread(
+                    id: id,
+                    address: address,
+                    subId: (it["subId"] as? Int) ?? -1,
+                    sim: (it["sim"] as? String) ?? "",
+                    name: (it["name"] as? String) ?? address,
+                    preview: messages.last?.text ?? "",
+                    when: Self.shortTime(it["when"] as? Double),
+                    unread: (it["unread"] as? Int) ?? 0,
+                    messages: messages
+                )
+            }
+            DispatchQueue.main.async { self.liveThreads = threads }
+
+        case "sims":
+            let items = obj["items"] as? [[String: Any]] ?? []
+            let sims = items.compactMap { it -> SimCard? in
+                guard let subId = it["subId"] as? Int else { return nil }
+                return SimCard(id: subId,
+                               slot: (it["slot"] as? Int) ?? 0,
+                               label: (it["label"] as? String) ?? "SIM")
+            }
+            DispatchQueue.main.async { self.liveSims = sims }
+
         case "contacts":
             let items = obj["items"] as? [[String: Any]] ?? []
             let contacts = items.enumerated().map { i, it in
@@ -499,6 +556,15 @@ final class PairingManager: ObservableObject {
     /// was asleep when a call ended never heard about it and comes back still
     /// showing the call. See LinkBridge's wake handling.
     func requestState() { sendCommand(["type": "requestState"]) }
+    func requestThreads() { sendCommand(["type": "getThreads"]) }
+    /// Sends a text through the phone's radio. The body never touches disk or a
+    /// log on either side — it goes out over the sealed session and nowhere else.
+    func sendSms(to address: String, text: String, subId: Int) {
+        sendCommand(["type": "sendSms", "address": address, "text": text, "subId": subId])
+    }
+    func markThreadRead(_ threadId: String) {
+        sendCommand(["type": "markThreadRead", "threadId": threadId])
+    }
     func answerCall() { sendCommand(["type": "answer"]) }
     func hangup() { sendCommand(["type": "hangup"]) }
     func setMute(_ on: Bool) { sendCommand(["type": "setMute", "on": on]) }
@@ -626,6 +692,12 @@ final class PairingManager: ObservableObject {
         if seconds < 3600 { return "\(Int(seconds / 60))m" }
         if seconds < 86_400 { return "\(Int(seconds / 3600))h" }
         return date.formatted(date: .abbreviated, time: .omitted)
+    }
+
+    /// The epoch-ms overload the phone's rows carry.
+    private static func shortTime(_ epochMs: Double?) -> String {
+        guard let epochMs, epochMs > 0 else { return "" }
+        return shortTime(Date(timeIntervalSince1970: epochMs / 1000))
     }
 
     /// Builds a RecentCall from a call-log JSON row (epoch-ms `when`, seconds `duration`).
