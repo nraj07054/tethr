@@ -15,8 +15,18 @@ android {
         applicationId = "com.nikhilraj.tethr"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        // Taken from the tag being released, so the APK cannot claim to be a
+        // version it is not. v1.1.0 shipped the Messages build still calling
+        // itself 1.0 with versionCode 1 — identical to the release before it,
+        // which meant Android saw no upgrade at all and nobody could tell from
+        // the phone which build they were running. The fallbacks are for a
+        // local build, where the number does not matter.
+        //
+        // versionCode counts releases rather than encoding the name: it only
+        // has to increase, and deriving it from the tag would break the first
+        // time a version has two digits in a part.
+        versionCode = System.getenv("TETHR_VERSION_CODE")?.toIntOrNull() ?: 1
+        versionName = System.getenv("TETHR_VERSION")?.takeIf { it.isNotBlank() } ?: "dev"
     }
 
     // Driven by environment variables rather than a checked-in keystore: a
