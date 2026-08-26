@@ -147,12 +147,16 @@ fun TethrScreen() {
     var clipboardOk by remember { mutableStateOf(ClipboardReader.canReadInBackground(context)) }
     // Whether this skin gates background work behind a manual opt-in.
     val hasAutoStart = remember { Background.needsAutoStartOptIn() }
+    // Messages is the one feature that can be refused on its own, so the card
+    // has to say which it is rather than looking broken.
+    var smsOk by remember { mutableStateOf(Sms.canRead(context)) }
     DisposableEffect(Unit) {
         val owner = context as? androidx.lifecycle.LifecycleOwner
         val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
             if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 controlEnabled = TethrGestureService.isEnabled(context)
                 notifAccess = TethrNotificationService.isEnabled(context)
+                smsOk = Sms.canRead(context)
                 batteryOk = Background.isBatteryUnrestricted(context)
                 clipboardOk = ClipboardReader.canReadInBackground(context)
             }
@@ -278,7 +282,8 @@ fun TethrScreen() {
                 mirroring = mirroring,
                 connected = connected,
                 controlEnabled = controlEnabled,
-                notifAccess = notifAccess
+                notifAccess = notifAccess,
+                smsOk = smsOk
             )
 
             if (linked && !controlEnabled) {
@@ -575,6 +580,7 @@ private fun FeatureRow(
     connected: Boolean,
     controlEnabled: Boolean,
     notifAccess: Boolean,
+    smsOk: Boolean,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
         FeatureCard(
@@ -589,6 +595,16 @@ private fun FeatureRow(
             detail = if (connected) "Synced with your Mac" else "Syncs once connected",
             live = connected
         ) { CallGlyph(Color.White, 20.dp) }
+        FeatureCard(
+            tint = Green,
+            title = "Messages",
+            detail = when {
+                !smsOk -> "Allow SMS to read and send texts"
+                connected -> "Texts synced with your Mac"
+                else -> "Syncs once connected"
+            },
+            live = smsOk && connected
+        ) { MessageGlyph(Color.White, 20.dp) }
         FeatureCard(
             tint = Purple,
             title = "Control from Mac",
@@ -787,6 +803,29 @@ private fun CallGlyph(tint: Color, size: Dp) {
             cubicTo(w * 0.55f, h * 0.94f, w * 0.14f, h * 0.55f, w * 0.20f, h * 0.16f)
         }
         drawPath(path, tint, style = Stroke(width = w * 0.10f, cap = StrokeCap.Round))
+    }
+}
+
+/** A speech bubble, for the Messages card. */
+@Composable
+private fun MessageGlyph(tint: Color, size: Dp) {
+    Canvas(Modifier.size(size)) {
+        val w = this.size.width
+        val h = this.size.height
+        drawRoundRect(
+            color = tint,
+            topLeft = Offset(w * 0.08f, h * 0.14f),
+            size = Size(w * 0.84f, h * 0.54f),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.18f)
+        )
+        // The tail, so it reads as speech rather than as a plain tile.
+        val tail = androidx.compose.ui.graphics.Path().apply {
+            moveTo(w * 0.26f, h * 0.62f)
+            lineTo(w * 0.26f, h * 0.90f)
+            lineTo(w * 0.50f, h * 0.64f)
+            close()
+        }
+        drawPath(tail, tint)
     }
 }
 
