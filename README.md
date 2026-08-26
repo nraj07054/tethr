@@ -14,6 +14,9 @@ over your local Wi‑Fi network — no account, no cloud, everything stays on yo
   phone; Back / Home / Recents. (Uses an Android accessibility service.)
 - **Calls** — synced call history, tap-to-dial from the Mac, caller ID, and a
   floating incoming-call card that appears whether or not the window is open.
+- **Messages** — SMS threads synced to the Mac, read and replied to on a real
+  keyboard, and new conversations started from there. On a dual-SIM phone each
+  reply leaves from the SIM its conversation is on.
 - **Notifications** — mirrored to the Mac with the real app name and icon, and
   reply inline through the notification's own reply action.
 - **Clipboard** — copy on one device, paste on the other. Password-manager and
@@ -109,6 +112,7 @@ Open this link **on the phone** — it always points at the newest release:
    | Permission | What it enables |
    |---|---|
    | Contacts, Call log, Phone | Contacts, call history, caller ID, dialling |
+   | SMS | Reading and sending texts from the Mac |
    | Notification access | Mirroring notifications and replying from the Mac |
    | Accessibility (*Tethr — Control from Mac*) | Tapping and swiping the mirrored screen |
    | Display over other apps | Reading the clipboard while Tethr is in the background |
@@ -213,6 +217,12 @@ secrets — the workflow falls back to a debug build (and says so) without them:
 - Live **call audio** cannot be routed to the Mac by a third‑party app (Android
   restriction); it stays on the phone.
 - Remote control supports taps and swipes, not pinch‑zoom or text entry (yet).
+- Messages covers **SMS only**. MMS lives in a different provider with its own
+  attachment table, and a picture message would arrive as an empty bubble, so
+  those conversations are left out rather than shown blank.
+- Reading SMS needs `READ_SMS`, which Google Play grants only to a phone's
+  default SMS handler. Tethr is sideloaded, so it can hold the permission — but
+  that is also why Tethr can never be published on the Play Store.
 
 ## Contributing
 
