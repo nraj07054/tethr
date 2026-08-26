@@ -64,6 +64,11 @@ xattr -dr com.apple.quarantine /Applications/Tethr.app
 
 Skip that second line and macOS refuses to open the app. See below for why.
 
+The same applies to every `brew upgrade --cask tethr`. Homebrew re-tags the app
+on each upgrade, so the `xattr` line has to be run again — otherwise an update
+leaves you with a Tethr that will not open, months after the one time you
+cleared it.
+
 Then allow **Local Network** access when asked — the phone reaches the Mac over
 your LAN and the link cannot work without it.
 
