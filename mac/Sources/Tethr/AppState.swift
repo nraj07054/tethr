@@ -105,6 +105,8 @@ final class AppState: ObservableObject {
     /// `subId` names the SIM; -1 leaves the choice to the phone's default.
     var onSendMessage: ((String, String, Int) -> Void)?
     var onThreadRead: ((String) -> Void)?
+    /// Sends the floating call card away. The call is untouched.
+    var onHideCallCard: (() -> Void)?
 
     /// Who is calling. The phone resolves the name against its own address book,
     /// which is the reliable answer; matching the synced contacts is the
@@ -341,9 +343,23 @@ final class AppState: ObservableObject {
 
     // MARK: Call phase, as reported by the phone
 
+    /// True once the card has been dismissed for the current call, so it stays
+    /// away until a new one starts.
+    private(set) var callCardHidden = false
+
+    /// Dismisses the floating card for this call only.
+    func hideCallCard() {
+        callCardHidden = true
+        onHideCallCard?()
+    }
+
     /// A call is ringing. Only clears the in-call panel when there was no call
     /// to begin with — otherwise this is call waiting over a live call.
     func markCallRinging() {
+        // A new call earns the card back, however firmly the last one was
+        // dismissed — otherwise hiding once would silently cost every call
+        // after it.
+        if ongoing == nil { callCardHidden = false }
         incomingCall = true
         guard ongoing == nil else { return }
         inCall = false
@@ -356,6 +372,8 @@ final class AppState: ObservableObject {
     /// - Parameter answeredNow: true when the phone went straight from ringing
     ///   to offhook, which is the moment an incoming call was picked up.
     func markCallActive(answeredNow: Bool) {
+        // An outgoing call reaches here without ringing first; it is new too.
+        if ongoing == nil { callCardHidden = false }
         incomingCall = false
         inCall = true
         if ongoing != nil {
@@ -368,6 +386,7 @@ final class AppState: ObservableObject {
 
     /// The phone is idle: no call, ringing or otherwise.
     func markCallIdle() {
+        callCardHidden = false
         incomingCall = false
         inCall = false
         callConnectedAt = nil

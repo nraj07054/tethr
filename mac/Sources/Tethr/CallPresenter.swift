@@ -42,6 +42,7 @@ final class AppCore {
             pairing.sendSms(to: address, text: text, subId: subId)
         }
         state.onThreadRead = { [pairing] in pairing.markThreadRead($0) }
+        state.onHideCallCard = { [bridge] in bridge.hideCallCard() }
         clipboard.attach(to: pairing)
         // Wired here rather than in a view: a file can arrive whether or not
         // any window is open, and it needs somewhere to land either way.
@@ -145,6 +146,9 @@ final class LinkBridge: ObservableObject {
     }
 
     private var previousPhase: PairingManager.CallPhase = .idle
+
+    /// Forwarded from AppState's hide button.
+    func hideCallCard() { calls.hide() }
 }
 
 /// Puts a ringing or ongoing call on screen whether or not Tethr's window is open.
@@ -169,9 +173,15 @@ final class CallPresenter {
         case .idle:
             panel?.orderOut(nil)
         case .ringing, .active:
+            // Dismissed for this call: the phone may keep reporting it, but the
+            // card was asked to go away and should stay away.
+            guard !state.callCardHidden else { return }
             show(compact: phase == .ringing)
         }
     }
+
+    /// Sends the card away without touching the call.
+    func hide() { panel?.orderOut(nil) }
 
     private func show(compact: Bool) {
         let panel = self.panel ?? makePanel()
@@ -182,7 +192,13 @@ final class CallPresenter {
         _ = compact
         // Sized to the card itself now that it fills the window: no padding is
         // needed for a shadow the window draws outside its own frame.
-        let size = NSSize(width: 360, height: 172)
+        //
+        // A notification's proportions, not a dialog's. The old 360x172 came
+        // from stacking a 58pt avatar above a full-width button row, which made
+        // a card that sat over your work for the length of a call and looked
+        // like it wanted answering rather than glancing at. Actions moved
+        // beside the caller, so this is roughly a system banner: 344x90.
+        let size = NSSize(width: 336, height: 86)
         panel.setContentSize(size)
         positionTopRight(panel, size: size)
         // Regardless: the window shows even though Tethr is not the active app,
@@ -207,7 +223,7 @@ final class CallPresenter {
         // title-bar inset even with the title hidden, and its frame does not
         // line up with the rounded card drawn inside it.
         let panel = CallPanel(
-            contentRect: NSRect(origin: .zero, size: NSSize(width: 372, height: 208)),
+            contentRect: NSRect(origin: .zero, size: NSSize(width: 336, height: 86)),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
             defer: false

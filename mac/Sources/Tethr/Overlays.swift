@@ -458,44 +458,45 @@ struct IncomingCallBanner: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 17) {
-            HStack(spacing: 14) {
-                avatar
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Incoming · \(pairing.deviceName ?? "Phone")")
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .kerning(0.6)
-                        .textCase(.uppercase)
+        HStack(spacing: 12) {
+            avatar
+            VStack(alignment: .leading, spacing: 2) {
+                Text("Incoming · \(pairing.deviceName ?? "Phone")")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .kerning(0.55)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Glide.inkSoft)
+                Text(displayName)
+                    .font(.system(size: 15.5, weight: .bold))
+                    .kerning(-0.2)
+                    .foregroundStyle(Glide.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.system(size: 11.5))
+                        .monospacedDigit()
                         .foregroundStyle(Glide.inkSoft)
-                    Text(displayName)
-                        .font(.system(size: 19, weight: .bold))
-                        .kerning(-0.3)
-                        .foregroundStyle(Glide.ink)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    if let subtitle {
-                        Text(subtitle)
-                            .font(.system(size: 12.5))
-                            .monospacedDigit()
-                            .foregroundStyle(Glide.inkSoft)
-                            .lineLimit(1)
-                    }
                 }
-                Spacer(minLength: 0)
             }
-
-            HStack(spacing: 10) {
-                actionButton("Decline", symbol: "phone.down.fill", fill: Palette.red) {
-                    state.declineCall()
-                }
-                actionButton("Accept", symbol: "phone.fill", fill: Palette.green) {
-                    state.acceptCall()
-                }
+            Spacer(minLength: 6)
+            // Round and unlabelled, beside the caller rather than stacked
+            // beneath. The words cost a whole row of height, and a red phone
+            // dropping and a green one lifting are the two most legible icons
+            // in the language.
+            roundAction(symbol: "phone.down.fill", fill: Palette.red, hint: "Decline") {
+                state.declineCall()
+            }
+            roundAction(symbol: "phone.fill", fill: Palette.green, hint: "Accept") {
+                state.acceptCall()
             }
         }
-        .padding(18)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 13)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(CallCard.background)
+        .overlay(alignment: .topTrailing) { HideCardButton() }
         .onAppear { pulse = true }
     }
 
@@ -506,7 +507,7 @@ struct IncomingCallBanner: View {
             ForEach(0..<2, id: \.self) { i in
                 Circle()
                     .stroke(Palette.green.opacity(0.45), lineWidth: 2)
-                    .frame(width: 58, height: 58)
+                    .frame(width: 44, height: 44)
                     // Starts just outside the avatar so a ring is visible even
                     // in the instant before the animation begins.
                     .scaleEffect(pulse ? 1.65 : 1.08)
@@ -551,6 +552,57 @@ struct IncomingCallBanner: View {
 
 
 /// Centered in-call panel with call controls.
+/// A round, unlabelled call action — the compact card's answer to a button row.
+private func roundAction(symbol: String, fill: Color, hint: String,
+                         action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        Image(systemName: symbol)
+            .font(.system(size: 14, weight: .bold))
+            .foregroundStyle(.white)
+            .frame(width: 40, height: 40)
+            .background {
+                Circle()
+                    .fill(fill)
+                    .shadow(color: fill.opacity(0.4), radius: 7, y: 3)
+            }
+    }
+    .buttonStyle(PressableStyle(scale: 0.92))
+    .help(hint)
+}
+
+/// Sends the floating card away without touching the call.
+///
+/// The card had no way out: it sat over everything for the whole length of a
+/// call, and the only things that dismissed it were answering, declining or
+/// hanging up — so staying on a call meant living with it. Hiding is a purely
+/// local act. The call carries on, the phone is not told anything, and the next
+/// call brings the card back.
+private struct HideCardButton: View {
+    @EnvironmentObject var state: AppState
+    @State private var hovering = false
+
+    var body: some View {
+        Button {
+            state.hideCallCard()
+        } label: {
+            Image(systemName: "xmark")
+                .font(.system(size: 8.5, weight: .bold))
+                .foregroundStyle(Glide.inkSoft)
+                .frame(width: 18, height: 18)
+                .background(Glide.surfaceAlt, in: Circle())
+        }
+        .buttonStyle(.plain)
+        .help("Hide — the call keeps going")
+        // Quiet but always there. Revealing it only on hover would hide the
+        // one control someone goes looking for precisely because the card is
+        // in their way.
+        .opacity(hovering ? 1 : 0.45)
+        .animation(.easeOut(duration: 0.14), value: hovering)
+        .padding(7)
+        .onHover { hovering = $0 }
+    }
+}
+
 struct InCallPanel: View {
     @EnvironmentObject var state: AppState
     @EnvironmentObject var pairing: PairingManager
@@ -576,64 +628,46 @@ struct InCallPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 17) {
-            HStack(spacing: 14) {
-                Thumb(initials: initials, tint: Palette.green, size: 58, radius: 29)
-                    .shadow(color: Palette.green.opacity(0.3), radius: 10, y: 5)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("On a call · \(pairing.deviceName ?? "Phone")")
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .kerning(0.6)
-                        .textCase(.uppercase)
+        HStack(spacing: 12) {
+            Thumb(initials: initials, tint: Palette.green, size: 44, radius: 22)
+                .shadow(color: Palette.green.opacity(0.3), radius: 8, y: 4)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("On a call · \(pairing.deviceName ?? "Phone")")
+                    .font(.system(size: 9.5, weight: .semibold))
+                    .kerning(0.55)
+                    .textCase(.uppercase)
+                    .foregroundStyle(Glide.inkSoft)
+                Text(displayName)
+                    .font(.system(size: 15.5, weight: .bold))
+                    .kerning(-0.2)
+                    .foregroundStyle(Glide.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                HStack(spacing: 5) {
+                    LiveDot()
+                    // No invented duration for an outgoing call: a timer that
+                    // disagrees with the phone's own is worse than none.
+                    Text(duration ?? "On your phone")
+                        .font(.system(size: 11.5))
+                        .monospacedDigit()
                         .foregroundStyle(Glide.inkSoft)
-                    Text(displayName)
-                        .font(.system(size: 19, weight: .bold))
-                        .kerning(-0.3)
-                        .foregroundStyle(Glide.ink)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
-                    HStack(spacing: 6) {
-                        LiveDot()
-                        // No invented duration for an outgoing call: a timer
-                        // that disagrees with the phone's own is worse than none.
-                        Text(duration ?? "On your phone")
-                            .font(.system(size: 12.5))
-                            .monospacedDigit()
-                            .foregroundStyle(Glide.inkSoft)
-                    }
                 }
-                Spacer(minLength: 0)
             }
-
+            Spacer(minLength: 6)
             // Mute, speaker, hold and DTMF all require the default-dialer role,
             // which Tethr deliberately does not take. Ending the call is the one
-            // thing a companion app can genuinely do from here, so it gets the
-            // whole row rather than sitting among controls that cannot work.
-            Button {
+            // thing a companion app can genuinely do from here.
+            roundAction(symbol: "phone.down.fill", fill: Palette.red, hint: "End call") {
                 state.endCall()
-            } label: {
-                HStack(spacing: 7) {
-                    Image(systemName: "phone.down.fill")
-                        .font(.system(size: 12.5, weight: .bold))
-                    Text("End call")
-                        .font(.system(size: 14, weight: .semibold))
-                }
-                .foregroundStyle(.white)
-                .frame(maxWidth: .infinity)
-                .frame(height: 42)
-                .background {
-                    Capsule()
-                        .fill(Palette.red)
-                        .shadow(color: Palette.red.opacity(0.4), radius: 9, y: 4)
-                }
             }
-            .buttonStyle(PressableStyle(scale: 0.96))
         }
-        .padding(18)
+        .padding(.horizontal, 15)
+        .padding(.vertical, 13)
         // Fills the panel exactly. Anything less leaves window showing through
         // around the card, which reads as a stray translucent border.
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(CallCard.background)
+        .overlay(alignment: .topTrailing) { HideCardButton() }
         .onReceive(timer) { now = $0 }
     }
 }
