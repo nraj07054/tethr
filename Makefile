@@ -1,9 +1,12 @@
-.PHONY: all mac android install install-mac install-android test clean
+.PHONY: all mac dmg android install install-mac install-android test clean
 
 all: mac android
 
 mac:            ## Build Tethr.app
 	@scripts/build-mac.sh
+
+dmg:            ## Build Tethr.app and package it as Tethr-macOS.dmg
+	@scripts/build-dmg.sh
 
 android:        ## Build the Android APK
 	@cd android && ./gradlew assembleDebug

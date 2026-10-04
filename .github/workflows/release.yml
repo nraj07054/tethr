@@ -28,10 +28,16 @@ jobs:
           # Printed so the Homebrew cask's sha256 can be updated from the log
           # without downloading the artifact again.
           echo "::notice title=Cask sha256::$(shasum -a 256 Tethr-macOS.zip | cut -d' ' -f1)"
+      # The DMG is what the download page links to; the zip stays for the
+      # Homebrew cask and the curl one-liner, which both point at it.
+      - name: Disk image
+        run: ./scripts/build-dmg.sh --skip-build
       - uses: actions/upload-artifact@v7
         with:
           name: mac
-          path: Tethr-macOS.zip
+          path: |
+            Tethr-macOS.zip
+            Tethr-macOS.dmg
 
   android:
     name: Build the APK

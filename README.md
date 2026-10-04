@@ -46,7 +46,14 @@ Grab the two files from the [latest release][releases] — no compiler needed.
 > Intel Mac needs to build from source. So does macOS 14 or 15, with the
 > platform floor in `mac/Package.swift` lowered back to `.macOS(.v14)`.
 
-**Download it** — paste this into Terminal:
+**Download the DMG** — [Tethr-macOS.dmg][dmg]. Open it, drag Tethr into
+Applications, then approve it once: open Tethr, click **Done** on the
+*"Apple could not verify"* dialog (not **Move to Bin**), and go to System
+Settings > Privacy & Security > **Open Anyway**. See below for why.
+
+[dmg]: https://github.com/nraj07054/tethr/releases/latest/download/Tethr-macOS.dmg
+
+**Or one command**, with nothing to approve afterwards — paste this into Terminal:
 
 ```sh
 curl -L -o /tmp/Tethr.zip https://github.com/nraj07054/tethr/releases/latest/download/Tethr-macOS.zip
@@ -73,9 +80,9 @@ Then allow **Local Network** access when asked — the phone reaches the Mac ove
 your LAN and the link cannot work without it.
 
 <details>
-<summary>Why not just download it in the browser?</summary>
+<summary>Why does a browser download need approving?</summary>
 
-You can, but macOS will refuse to open it — *"Apple could not verify 'Tethr' is
+Because macOS refuses to open it until you do — *"Apple could not verify 'Tethr' is
 free of malware..."*, or on older versions *"Tethr is damaged and can't be
 opened."* Nothing is damaged. Tethr is signed ad-hoc rather than notarised by
 Apple, because notarisation requires a paid Apple Developer account this project

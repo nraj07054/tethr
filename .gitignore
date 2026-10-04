@@ -22,4 +22,7 @@ android/captures/
 *.hprof
 
 # ── Misc ───────────────────────────────────────────────
+# Release packages built locally by scripts/build-dmg.sh.
+/Tethr-macOS.dmg
+/Tethr-macOS.zip
 *.log
