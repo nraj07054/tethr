@@ -164,6 +164,86 @@
   .sec li::before { display: none; }
   .sec li strong { color: var(--ink); }
 
+  /* ── Install guide ──────────────────────────────────────────────── */
+  .install { scroll-margin-top: 20px; transition: box-shadow .3s ease, border-color .3s ease; }
+  .install.flash { border-color: var(--green); box-shadow: 0 0 0 4px color-mix(in srgb, var(--green) 22%, transparent), var(--shadow-lg); }
+  .started {
+    display: none; align-items: center; gap: 10px; margin: -6px 0 18px;
+    padding: 10px 14px; border-radius: var(--r-control);
+    background: color-mix(in srgb, var(--green) 12%, var(--surface));
+    color: var(--ink); font-size: 14px; font-weight: 600;
+  }
+  .install.flash .started, .install.done .started { display: flex; }
+  .started .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--green); flex: none; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 760px) { .steps { grid-template-columns: 1fr; } }
+  .step {
+    position: relative; background: var(--surface-alt);
+    border-radius: var(--r-tile); padding: 14px 14px 16px;
+  }
+  .step h4 { display: flex; align-items: center; gap: 9px; margin: 12px 0 5px;
+             font-size: 15px; font-weight: 700; letter-spacing: -.2px; }
+  .step p { margin: 0; font-size: 13.5px; color: var(--ink-soft); line-height: 1.5; }
+  .step p strong { color: var(--ink); font-weight: 650; }
+  .step .num {
+    flex: none; width: 22px; height: 22px; border-radius: 7px;
+    background: var(--ink-fill); color: var(--on-ink);
+    font-size: 11.5px; font-weight: 700; display: grid; place-items: center;
+  }
+
+  /* Small drawings of what macOS will show, so each step is recognisable. */
+  .shot {
+    height: 168px; border-radius: 12px; background: var(--surface);
+    border: 1px solid var(--hairline); display: grid; place-items: center;
+    overflow: hidden; padding: 12px; font-size: 11px;
+  }
+  .win { width: 100%; max-width: 230px; border-radius: 9px; border: 1px solid var(--hairline);
+         background: var(--surface); box-shadow: var(--shadow); overflow: hidden; }
+  .win .bar { display: flex; align-items: center; gap: 4px; padding: 6px 8px;
+              background: var(--surface-alt); border-bottom: 1px solid var(--hairline); }
+  .win .bar i { width: 7px; height: 7px; border-radius: 50%; background: var(--hairline); }
+  .win .bar span { margin: 0 auto; padding-right: 30px; font-weight: 600; color: var(--ink-soft); }
+  .dmg { display: flex; align-items: center; justify-content: space-around; padding: 14px 6px 10px; }
+  .ico { display: grid; justify-items: center; gap: 4px; color: var(--ink-soft); }
+  .ico img { width: 40px; height: 40px; border-radius: 10px; }
+  .folder { position: relative; width: 44px; height: 34px; margin-top: 6px; border-radius: 5px; background: #4A9FF5; }
+  .folder::before { content: ""; position: absolute; top: -5px; left: 0; width: 18px; height: 8px;
+                    border-radius: 3px 3px 0 0; background: #3B8DE0; }
+  .drag { font-size: 22px; font-weight: 700; color: var(--green); animation: nudge 1.4s ease-in-out infinite; }
+  @keyframes nudge { 50% { transform: translateX(6px); } }
+
+  .alert { width: 100%; max-width: 200px; display: grid; justify-items: center; gap: 2px;
+           text-align: center; padding: 8px 10px; border-radius: 12px;
+           background: var(--surface-alt); box-shadow: var(--shadow); }
+  .alert img { width: 22px; height: 22px; border-radius: 7px; }
+  .alert b { font-size: 11.5px; }
+  .alert small { font-size: 9.5px; color: var(--ink-soft); line-height: 1.35; }
+  .btns { display: grid; gap: 5px; width: 100%; margin-top: 5px; }
+  .btn { display: block; padding: 3px 8px; border-radius: 6px; font-size: 10.5px; font-weight: 600;
+         text-align: center; background: var(--surface); border: 1px solid var(--hairline); white-space: nowrap; }
+  .btn.no { opacity: .45; text-decoration: line-through; }
+  .btn.ring { border-color: var(--green); box-shadow: 0 0 0 3px color-mix(in srgb, var(--green) 30%, transparent);
+              animation: pulse 1.8s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 6px color-mix(in srgb, var(--green) 12%, transparent); } }
+
+  .pane { width: 100%; max-width: 240px; text-align: left; }
+  .pane .crumb { font-size: 12px; font-weight: 700; margin-bottom: 8px; }
+  .pane .row-h { font-size: 10px; font-weight: 700; color: var(--ink-faint); margin-bottom: 4px; }
+  .pane .row { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border-radius: 9px;
+               background: var(--surface-alt); color: var(--ink-soft); font-size: 10px; line-height: 1.35; }
+
+  @media (prefers-reduced-motion: reduce) { .drag, .btn.ring { animation: none; } }
+
+  .copyable { position: relative; }
+  .copy {
+    position: absolute; top: 8px; right: 8px; padding: 5px 11px;
+    border: 1px solid var(--hairline); border-radius: 8px; cursor: pointer;
+    background: var(--surface-alt); color: var(--ink); font: 600 12px/1 inherit;
+  }
+  .copy:hover { border-color: var(--ink-faint); }
+  .copyable pre { padding-right: 76px; }
+
   footer {
     border-top: 1px solid var(--hairline); margin-top: 20px;
     padding: 28px 0 56px; text-align: center;
@@ -189,7 +269,7 @@
 
   <section>
     <div class="downloads">
-      <a class="dl" href="https://github.com/nraj07054/tethr/releases/latest/download/Tethr-macOS.dmg">
+      <a class="dl" id="mac-download" href="https://github.com/nraj07054/tethr/releases/latest/download/Tethr-macOS.dmg">
         <span class="arrow">↓</span>
         <div class="os">macOS</div>
         <div class="name">Tethr for Mac</div>
@@ -212,32 +292,69 @@
   <section>
     <h2 id="mac">Installing on the Mac</h2>
 
-    <div class="card">
+    <div class="card install" id="install">
+      <div class="started" role="status">
+        <span class="dot"></span>
+        Your download has started. Three steps and you are in.
+      </div>
       <h3>From the DMG</h3>
-      <p class="sub">The download above. Approving it the first time takes a minute.</p>
-      <ol>
-        <li>
-          <strong>Open <code>Tethr-macOS.dmg</code></strong> and drag Tethr onto
-          the Applications folder beside it.
-        </li>
-        <li>
-          <strong>Open Tethr from Applications.</strong> macOS says
-          <em>“Apple could not verify ‘Tethr’ is free of malware.”</em>
-          Click <strong>Done</strong> — not <strong>Move to Bin</strong>, which
-          is the highlighted button and deletes the app.
-        </li>
-        <li>
-          <strong>Open System Settings → Privacy &amp; Security</strong>, scroll
-          down to <em>“Tethr was blocked to protect your Mac”</em>, click
-          <strong>Open Anyway</strong> and confirm with your password. Tethr
-          opens, and macOS does not ask again for this copy.
-        </li>
-      </ol>
+      <p class="sub">The download above. macOS asks you to approve it once, the first time.</p>
+
+      <div class="steps">
+        <div class="step">
+          <div class="shot" aria-hidden="true">
+            <div class="win">
+              <div class="bar"><i></i><i></i><i></i><span>Tethr</span></div>
+              <div class="dmg">
+                <div class="ico"><img src="tethr-logo.png" alt=""><span>Tethr</span></div>
+                <div class="drag">→</div>
+                <div class="ico"><div class="folder"></div><span>Applications</span></div>
+              </div>
+            </div>
+          </div>
+          <h4><span class="num">1</span>Drag Tethr into Applications</h4>
+          <p>Open <code>Tethr-macOS.dmg</code> from your Downloads and drag the icon onto the folder beside it.</p>
+        </div>
+
+        <div class="step">
+          <div class="shot" aria-hidden="true">
+            <div class="alert">
+              <img src="tethr-logo.png" alt="">
+              <b>“Tethr” Not Opened</b>
+              <small>Apple could not verify “Tethr” is free of malware…</small>
+              <div class="btns">
+                <span class="btn ring">Done</span>
+                <span class="btn no">Move to Bin</span>
+              </div>
+            </div>
+          </div>
+          <h4><span class="num">2</span>Open it, then click Done</h4>
+          <p>macOS blocks the first launch. Click <strong>Done</strong> — <strong>Move to Bin</strong> deletes the app.</p>
+        </div>
+
+        <div class="step">
+          <div class="shot" aria-hidden="true">
+            <div class="pane">
+              <div class="crumb">Privacy &amp; Security</div>
+              <div class="row-h">Security</div>
+              <div class="row">
+                <span>“Tethr” was blocked to protect your Mac.</span>
+                <span class="btn ring">Open Anyway</span>
+              </div>
+            </div>
+          </div>
+          <h4><span class="num">3</span>Click Open Anyway</h4>
+          <p><strong>System Settings → Privacy &amp; Security</strong>, scroll to Security, click <strong>Open Anyway</strong> and enter your password. That is the last time it asks.</p>
+        </div>
+      </div>
+
       <div class="note">
-        <strong>Prefer Terminal?</strong> This one line replaces steps 2 and 3:
-        <pre><code>xattr -dr com.apple.quarantine /Applications/Tethr.app</code></pre>
-        Either way, a new version downloaded in a browser needs approving once
-        again.
+        <strong>Prefer Terminal?</strong> This one line replaces steps 2 and 3.
+        <div class="copyable">
+          <pre><code id="xattr">xattr -dr com.apple.quarantine /Applications/Tethr.app</code></pre>
+          <button class="copy" type="button" data-copy="xattr">Copy</button>
+        </div>
+        A new version downloaded in a browser needs approving once again.
       </div>
     </div>
 
@@ -369,5 +486,28 @@ unzip -q -o /tmp/Tethr.zip -d /Applications &amp;&amp; open /Applications/Tethr.
   </footer>
 
 </div>
+<script>
+  // The download starts in the background, so bring the install steps into
+  // view at the same moment: that is when someone needs them.
+  document.getElementById("mac-download").addEventListener("click", () => {
+    const guide = document.getElementById("install");
+    guide.classList.add("flash", "done");
+    guide.scrollIntoView({ behavior: "smooth", block: "start" });
+    setTimeout(() => guide.classList.remove("flash"), 2400);
+  });
+
+  document.querySelectorAll(".copy").forEach(button => {
+    button.addEventListener("click", async () => {
+      const text = document.getElementById(button.dataset.copy).textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        button.textContent = "Copied";
+      } catch {
+        button.textContent = "Select it";
+      }
+      setTimeout(() => (button.textContent = "Copy"), 1600);
+    });
+  });
+</script>
 </body>
 </html>
